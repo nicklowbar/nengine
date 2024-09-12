@@ -1,0 +1,15 @@
+Compiler('bash')
+{
+    .CompilerFamily = "custom"
+    .Executable = '/usr/bin/bash'
+}
+
+ObjectList( 'googletest-Lib' )
+{
+    // stub out compiler options, and call inline shell script.
+    .Compiler = "bash" // TODO: add cmake SDK helper to find CMAKE executable path, or add bash 'compiler'
+    .CompilerOptions = "%1 %2 -DBUILD_GMOCK=OFF"
+    .CompilerInputPath = "src"
+    .ProjectBuildCommand = "mkdir build > /dev/null 2> /dev/null; pushd build; cmake .. -DBUILD_GMOCK=OFF; make; popd;"
+    .CompilerOutputPath = "out/"
+}

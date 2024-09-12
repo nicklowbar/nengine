@@ -1,0 +1,90 @@
+// Apple Clang 12.0.0
+//------------------------------------------------------------------------------
+.Clang12_BasePath = '/usr/bin'
+
+#define CLANG_SUPPORTS_ARMOSX
+
+// Compiler
+//------------------------------------------------------------------------------
+Compiler( 'Compiler-Clang12' )
+{
+    .Root                           = '$Clang12_BasePath$'
+    .Executable                     = '$Root$/clang++'
+
+    // Allow tests to activate some experimental behavior
+    #if ENABLE_RELATIVE_PATHS
+        .UseRelativePaths_Experimental = true
+    #endif
+    #if ENABLE_SOURCE_MAPPING
+        .SourceMapping_Experimental = '/fastbuild-test-mapping'
+    #endif
+}
+
+// ToolChain
+//------------------------------------------------------------------------------
+.ToolChain_Clang_OSXCommon =
+[
+    // Compiler Options
+    .Compiler                       = 'Compiler-Clang12'
+    .CommonCompilerOptions          = ' -o "%2" "%1"'   // Input/Output
+                                    + ' -c'             // Compile only
+                                    + ' -g'             // Generate debug info
+                                    + ' -D__OSX__'      // Platform define
+                                    + ' -D__APPLE__'    // Platform define
+
+                                    // Include paths
+                                    + ' -I./'
+
+                                    // Enable warnings
+                                    + ' -Wall -Werror -Wfatal-errors'       // warnings as errors
+                                    + ' -Wextra'
+
+                                    // Disabled warnings
+                                    + ' -Wno-#pragma-messages'
+                                    + ' -Wno-invalid-offsetof'      // we get the offset of members in non-POD types
+                                    + ' -Wno-implicit-exception-spec-mismatch' // Fires on our new/delete operator (Clang bug?)
+
+    .CompilerOptions                = ' -std=c++17 $CommonCompilerOptions$'
+    .CompilerOptionsC               = ' -x c $CommonCompilerOptions$'
+    .PCHOptions                     = ' -x c++-header'
+                                    + ' -std=c++17 $CommonCompilerOptions$'
+
+    // Librarian
+    .Librarian                      = '$Clang12_BasePath$/ar'
+    .LibrarianOptions               = 'rcs "%2" "%1"'
+
+    // Linker
+    .Linker                         = '$Clang12_BasePath$/clang++'
+    .LinkerOptions                  = '"%1" -o "%2" -g'
+
+    // File Extensions
+    .LibExtension                   = '.a'
+    .ExeExtension                   = ''
+
+    // Exception Control
+    .UseExceptions                  = ' -fexceptions'
+]
+
+.ToolChain_Clang_OSX =
+[
+    Using( .ToolChain_Clang_OSXCommon )
+    
+    // Intel 64-bit
+    .Platform                       = 'x64OSX'
+    .CompilerOptions                + ' -arch x86_64'
+    .CompilerOptionsC               + ' -arch x86_64'
+    .LinkerOptions                  + ' -arch x86_64'
+]
+
+.ToolChain_Clang_ARMOSX =
+[
+    Using( .ToolChain_Clang_OSXCommon )
+    
+    // Apple ARM Silicon
+    .Platform                       = 'ARMOSX'
+    .CompilerOptions                + ' -arch arm64'
+    .CompilerOptionsC               + ' -arch arm64'
+    .LinkerOptions                  + ' -arch arm64'
+]
+
+//------------------------------------------------------------------------------
