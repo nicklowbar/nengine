@@ -3,13 +3,37 @@ Compiler('bash')
     .CompilerFamily = "custom"
     .Executable = '/usr/bin/bash'
 }
+.GoogleTestBasePath = "external/SDK/googletest/googletest/googletest"
+.GoogleTestInlcudePaths = ' "-I$GoogleTestBasePath$/include"'
+.GoogleTestSourcePaths = ' $GoogleTestBasePath$/src'
 
-ObjectList( 'googletest-Lib' )
 {
-    // stub out compiler options, and call inline shell script.
-    .Compiler = "bash" // TODO: add cmake SDK helper to find CMAKE executable path, or add bash 'compiler'
-    .CompilerOptions = "%1 %2 -DBUILD_GMOCK=OFF"
-    .CompilerInputPath = "src"
-    .ProjectBuildCommand = "mkdir build > /dev/null 2> /dev/null; pushd build; cmake .. -DBUILD_GMOCK=OFF; make; popd;"
-    .CompilerOutputPath = "out/"
+    .ProjectName = "GTest"
+    .ProjectPath = '$GoogleTestBasePath$'
+
+    .GoogleTestSharedOptions =  [
+                                    .CompilerOptions    + ' /W4'
+                                                        + ' -MT'
+                                                        
+                                ]
+
+    .GoogleTestOptions_x64  =   [
+                                    .GoogleTestCompilerOptions  =   ''
+                                    .Environment                +   ' '
+                                ]
+
+    .GoogleTestOptions_LinuxBase    =   [
+                                            .Environment        +   ' '
+                                        ]
+    
 }
+
+//ObjectList( 'googletest-Lib' )
+//{
+    // stub out compiler options, and call inline shell script.
+//    .Compiler = "bash" // TODO: add cmake SDK helper to find CMAKE executable path, or add bash 'compiler'
+//    .CompilerOptions = "%1 %2 -DBUILD_GMOCK=OFF"
+//    .CompilerInputFiles  = "external/SDK/googletest/googletest/src"
+//    .ProjectBuildCommand = "mkdir build > /dev/null 2> /dev/null; pushd build; cmake .. -DBUILD_GMOCK=OFF; make; popd;"
+//    .CompilerOutputPath = "out/external/SDK/googletest"
+//}
