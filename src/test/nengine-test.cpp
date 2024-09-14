@@ -10,7 +10,6 @@ TEST(nengine_test, nengine_default_initialization)
     ASSERT_TRUE(true);
 }
 
-
 int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
