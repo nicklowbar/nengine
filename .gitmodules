@@ -2,3 +2,6 @@
 	path = external/SDK/googletest/googletest
 	url = git@github.com:google/googletest.git
 	branch = main
+[submodule "external/SDK/glfw/glfw"]
+	path = external/SDK/glfw/glfw
+	url = git@github.com:glfw/glfw.git
