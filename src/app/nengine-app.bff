@@ -1,9 +1,9 @@
-// NeNgine
+// NeNgine - application
 //------------------------------------------------------------------------------
 
 {
-    .ProjectName                    = 'nengine-test'
-    .ProjectPath                    = 'src/test'
+    .ProjectName                    = 'nengine-app'
+    .ProjectPath                    = 'src/app'
 
     // Library
     //--------------------------------------------------------------------------
@@ -17,11 +17,7 @@
         //--------------------------------------------------------------------------
         Unity( '$ProjectName$-Unity-$Platform$-$BuildConfigName$' )
         {
-            .UnityInputPath     =   {
-                                        '$ProjectPath$',
-                                        '$GoogleTestIncludePath$'
-                                    }
-
+            .UnityInputPath             = '$ProjectPath$/'
             .UnityOutputPath            = '$OutputBase$/$ProjectPath$/'
             .UnityOutputPattern         = '$ProjectName$_Unity*.cpp'
         }
@@ -35,10 +31,6 @@
 
             // Extra Compiler Options
             .CompilerOptions            + .UseExceptions // Test framework uses exceptions
-                                        + ' -I$GoogleTestIncludePath$'
-                                        // TODO: we need to disable various warnings to include GoogleTest. Is there a better way?
-                                        + ' -Wno-reserved-identifier' 
-                                        + ' -Wno-vexing-parse'
 
             // Output
             .CompilerOutputPath         = '$OutputBase$/$ProjectPath$/'
@@ -57,9 +49,8 @@
         Executable( '$ProjectName$-Exe-$Platform$-$BuildConfigName$' )
         {
             .Libraries                      = {
+                                                'nengine-app-Lib-$Platform$-$BuildConfigName$'
                                                 'nengine-Lib-$Platform$-$BuildConfigName$'
-                                                'GTest-Lib-$Platform$-$BuildConfigName$'
-                                                'nengine-test-Lib-$Platform$-$BuildConfigName$'
                                               }
             .LinkerOutput                   = '$OutputBase$/$ProjectPath$/$ProjectName$$ExeExtension$'
             #if __WINDOWS__

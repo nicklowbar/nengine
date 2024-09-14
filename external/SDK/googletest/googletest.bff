@@ -1,39 +1,167 @@
-Compiler('bash')
-{
-    .CompilerFamily = "custom"
-    .Executable = '/usr/bin/bash'
-}
-.GoogleTestBasePath = "external/SDK/googletest/googletest/googletest"
-.GoogleTestInlcudePaths = ' "-I$GoogleTestBasePath$/include"'
-.GoogleTestSourcePaths = ' $GoogleTestBasePath$/src'
+.GoogleTestBasePath     = "external/SDK/googletest/googletest/googletest"
+.GoogleTestIncludePath  = '$GoogleTestBasePath$/include'
+.GoogleTestSourcePath   = '$GoogleTestBasePath$/src/'
 
 {
     .ProjectName = "GTest"
     .ProjectPath = '$GoogleTestBasePath$'
 
-    .GoogleTestSharedOptions =  [
-                                    .CompilerOptions    + ' /W4'
-                                                        + ' -MT'
-                                                        
-                                ]
 
-    .GoogleTestOptions_x64  =   [
-                                    .GoogleTestCompilerOptions  =   ''
-                                    .Environment                +   ' '
-                                ]
 
-    .GoogleTestOptions_LinuxBase    =   [
-                                            .Environment        +   ' '
-                                        ]
+    .GoogleTestOptions_x64              =   [
+                                                .GoogleTestCompilerOptions  =   ' -I$GoogleTestIncludePath$'
+                                                                            +   ' -I$GoogleTestBasePath$'
+                                                                            +   ' -GS -W4 -WX -wd4251 -wd4275 -nologo -J -MT'
+                                                                            +   ' -D_UNICODE -DUNICODE -DWIN32 -D_WIN32'
+                                                                            +   ' -DSTRICT -DWIN32_LEAN_AND_MEAN'
+                                                                            +   ' -EHsc -D_HAS_EXCEPTIONS=1'
+                                                                            +   ' -GR-'
+                                                                            +   ' -wd4702'
+                                                                            +   ' -utf-8'
+
+                                                .GoogleTestEnvironment      =   ' '
+                                            ]
+
+    .GoogleTestOptions_x64Clang         =   [
+                                                .GoogleTestCompilerOptions  =   ' -I$GoogleTestIncludePath$'
+                                                                            +   ' -I$GoogleTestBasePath$'
+                                                                            +   ' -lrt'
+                                                                            +   ' -Wall -Wshadow -Wundef'
+                                                                            +   ' -fexceptions'
+                                                                            +   ' -Wconversion'                                                               
+                                                                            +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                            +   ' -Wchar-subscripts'
+
+                                                .GoogleTestEnvironment      =   ' '
+                                            ]
+                                            
+    .GoogleTestOptions_x64Linux         =   [
+                                                .GoogleTestCompilerOptions  =   ' -I$GoogleTestIncludePath$'
+                                                                            +   ' -I$GoogleTestBasePath$'
+                                                                            +   ' -Wall -Wshadow -Wundef'
+                                                                            +   ' -fexceptions'
+                                                                            +   ' -DGTEST_HAS_PTHREAD=1'
+                                                                            +   ' -Wextra -Wno-unused-parameter -Wno-missing-field-initializers'
+
+                                                .GoogleTestEnvironment      =   ' '
+                                            ]
+
+    .GoogleTestOptions_x64ClangLinux    =   [
+                                                .GoogleTestCompilerOptions  =   ' -I$GoogleTestIncludePath$'
+                                                                            +   ' -I$GoogleTestBasePath$'
+                                                                            +   ' -Wall -Wshadow -Wundef'
+                                                                            +   ' -fexceptions'
+                                                                            +   ' -DGTEST_HAS_PTHREAD=1'
+                                                                            +   ' -Wconversion'                                                               
+                                                                            +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                            +   ' -Wchar-subscripts'
+                                                                            // Disable warnings to get GTest to build:
+                                                                            +   ' -Wno-reserved-macro-identifier'
+                                                                            +   ' -Wno-reserved-identifier'
+                                                                            +   ' -Wno-covered-switch-default'
+                                                                            +   ' -Wno-unused-template'
+                                                                            +   ' -Wno-unused-macros'
+                                                                            +   ' -Wno-zero-as-null-pointer-constant'
+
+                                                .GoogleTestEnvironment      =   ' '
+                                            ]
     
-}
+    // TODO: finish OSX build options.
+    .GoogleTestOptions_x64OSX       =   [
+                                            .GoogleTestCompilerOptions  =   ' -I$GoogleTestIncludePath$'
+                                                                        +   ' -I$GoogleTestBasePath$'
+                                                                        +   ' -Wall -Wshadow -Wundef'
+                                                                        +   ' -fexceptions'
+                                                                        +   ' -DGTEST_HAS_PTHREAD=1'
+                                                                        +   ' -Wconversion'                                                               
+                                                                        +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                        +   ' -Wchar-subscripts'
+                                                                        // Disable warnings to get GTest to build:
+                                                                        +   ' -Wno-reserved-macro-identifier'
+                                                                        +   ' -Wno-reserved-identifier'
+                                                                        +   ' -Wno-covered-switch-default'
+                                                                        +   ' -Wno-unused-template'
+                                                                        +   ' -Wno-unused-macros'
+                                                                        +   ' -Wno-zero-as-null-pointer-constant'
 
-//ObjectList( 'googletest-Lib' )
-//{
-    // stub out compiler options, and call inline shell script.
-//    .Compiler = "bash" // TODO: add cmake SDK helper to find CMAKE executable path, or add bash 'compiler'
-//    .CompilerOptions = "%1 %2 -DBUILD_GMOCK=OFF"
-//    .CompilerInputFiles  = "external/SDK/googletest/googletest/src"
-//    .ProjectBuildCommand = "mkdir build > /dev/null 2> /dev/null; pushd build; cmake .. -DBUILD_GMOCK=OFF; make; popd;"
-//    .CompilerOutputPath = "out/external/SDK/googletest"
-//}
+                                            .GoogleTestEnvironment      =   ' '
+                                        ]
+
+    .GoogleTestOptions_ARMOSX       =   [
+                                            .GoogleTestCompilerOptions  =   ' -I$GoogleTestIncludePath$'
+                                                                        +   ' -I$GoogleTestBasePath$'
+                                                                        +   ' -lrt'
+                                                                        +   ' -Wall -Wshadow -Wundef'
+                                                                        +   ' -fexceptions'
+                                                                        +   ' -DGTEST_HAS_PTHREAD=1'
+                                                                        +   ' -Wconversion'                                                               
+                                                                        +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                        +   ' -Wchar-subscripts'
+                                                                        +   ' -Wno-unused-command-line-argument'
+                                                                        // Disable warnings to get GTest to build:
+                                                                        +   ' -Wno-reserved-macro-identifier'
+                                                                        +   ' -Wno-reserved-identifier'
+                                                                        +   ' -Wno-covered-switch-default'
+                                                                        +   ' -Wno-unused-template'
+                                                                        +   ' -Wno-unused-macros'
+                                                                        +   ' -Wno-zero-as-null-pointer-constant'                                                                        
+
+                                            .GoogleTestEnvironment      =   ' '
+                                        ]
+
+    .GoogleTestOptions_OSX          =   [
+                                            .GoogleTestCompilerOptions  =   ' -I$GoogleTestIncludePath$'
+                                                                        +   ' -I$GoogleTestBasePath$'
+                                                                        +   ' -lrt'
+                                                                        +   ' -Wall -Wshadow -Wundef'
+                                                                        +   ' -fexceptions'
+                                                                        +   ' -DGTEST_HAS_PTHREAD=1'
+                                                                        +   ' -Wconversion'                                                               
+                                                                        +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                        +   ' -Wchar-subscripts'
+                                                                        +   ' -Wno-unused-command-line-argument'
+                                                                        // Disable warnings to get GTest to build:
+                                                                        +   ' -Wno-reserved-macro-identifier'
+                                                                        +   ' -Wno-reserved-identifier'
+                                                                        +   ' -Wno-covered-switch-default'
+                                                                        +   ' -Wno-unused-template'
+                                                                        +   ' -Wno-unused-macros'
+                                                                        +   ' -Wno-zero-as-null-pointer-constant'
+
+                                            .GoogleTestEnvironment      =   ' '
+                                        ]
+
+    // Library
+    //--------------------------------------------------------------------------
+    .ProjectConfigs = {}
+    ForEach( .BuildConfig in .BuildConfigs )
+    {
+        Using( .BuildConfig )
+
+        .OutputBase + '\$Platform$-$BuildConfigName$'
+
+        .GoogleTestOutputPath   = '$OutputBase$/external/SDK/$ProjectName$/'
+
+        Using( ."GoogleTestOptions_$Platform$" )
+
+        // Static Library
+        ObjectList( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' )
+        {
+            Print( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' )
+            // Input
+            .CompilerInputFiles  = '$GoogleTestSourcePath$/gtest-all.cc'
+
+            Print( '$GoogleTestSourcePath$' )
+
+            // Compile Options
+            .CompilerOptions    = .CompilerOptions
+                                + .GoogleTestCompilerOptions
+                                - "-fsanitize=address"
+            
+            .CompilerInputPattern = '*.cc'
+            
+            // Output
+            .CompilerOutputPath = .GoogleTestOutputPath
+        }
+    }
+}

@@ -30,6 +30,7 @@ Settings
 .Debug_Config =
 [
     .CompilerOptions                = ' -DDEBUG -DPROFILING_ENABLED'
+
     .CompilerOptionsC               = .CompilerOptions
 
     .BuildConfigName                = 'Debug'
@@ -331,7 +332,7 @@ Settings
 #if __WINDOWS__
     .BuildConfigs               = { .X64DebugConfig, .X64AnalyzeConfig, .X64ProfileConfig, .X64ReleaseConfig
                                     .X64ASanConfig, .X64TSanConfig
-                                    .X64ClangDebugConfig, .X64ClangAnalyzeConfig .X64ClangProfileConfig, .X64ClangReleaseConfig
+                                    .X64ClangDebugConfig, .X64ClangAnalyzeConfig, .X64ClangProfileConfig, .X64ClangReleaseConfig
                                     .X64ClangASanConfig, .X64ClangTSanConfig }
 #endif
 #if __LINUX__
@@ -388,10 +389,11 @@ Settings
 #include "external/SDK/googletest/googletest.bff"
 
 // NeNgine Core
-#include "src\nengine.bff"
+#include "src/core/nengine.bff"
+#include "src/app/nengine-app.bff"
 
 // NeNgine Tests
-#include "src\test\nengine-test.bff"
+#include "src/test/nengine-test.bff"
 
 // Aliases : All-$Platform$-$Config$
 //------------------------------------------------------------------------------
