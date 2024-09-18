@@ -36,6 +36,8 @@
             // Extra Compiler Options
             .CompilerOptions            + .UseExceptions // Test framework uses exceptions
                                         + ' -I$GoogleTestIncludePath$'
+                                        + ' -I$GlfwIncludePath$'
+                                        + ' -I$GlmIncludePath$' // inlcude GLM
                                         // TODO: we need to disable various warnings to include GoogleTest. Is there a better way?
                                         + ' -Wno-reserved-identifier' 
                                         + ' -Wno-vexing-parse'
@@ -43,7 +45,7 @@
             // Output
             .CompilerOutputPath         = '$OutputBase$/$ProjectPath$/'
         }
-        
+
         // Windows Manifest
         //--------------------------------------------------------------------------
         #if __WINDOWS__
@@ -61,6 +63,7 @@
                                                 'GTest-Lib-$Platform$-$BuildConfigName$'
                                                 'nengine-test-Lib-$Platform$-$BuildConfigName$'
                                               }
+
             .LinkerOutput                   = '$OutputBase$/$ProjectPath$/$ProjectName$$ExeExtension$'
             #if __WINDOWS__
                 .LinkerOptions                  + ' /SUBSYSTEM:CONSOLE'
@@ -79,6 +82,7 @@
             #endif
             #if __LINUX__
                 .LinkerOptions                  + ' -pthread -lrt'
+                                                + ' -lvulkan'
             #endif
         }
         Alias( '$ProjectName$-$Platform$-$BuildConfigName$' ) { .Targets = '$ProjectName$-Exe-$Platform$-$BuildConfigName$' }

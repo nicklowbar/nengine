@@ -34,6 +34,7 @@ Compiler( 'Compiler-Clang14' )
 
                                     // Include paths
                                     + ' -I./'
+                                    //+ ' -I/usr/include'
 
                                     // Enable warnings
                                     + ' -Wall -Werror -Wfatal-errors'   // warnings as errors

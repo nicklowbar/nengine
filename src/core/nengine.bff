@@ -31,6 +31,8 @@
             // Input
             .CompilerInputUnity         = '$ProjectName$-Unity-$Platform$-$BuildConfigName$'
 
+            .CompilerOptions            + ' -I$GlmIncludePath$' // inlcude GLM
+
             // Output
             .CompilerOutputPath         = '$OutputBase$/$ProjectPath$/'
         }

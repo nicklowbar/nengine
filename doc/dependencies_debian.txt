@@ -1,0 +1,6 @@
+vulkan-sdk
+xcursor
+libxcursor-dev
+libxrender-dev
+libx11-dev
+clang

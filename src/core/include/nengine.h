@@ -1,4 +1,7 @@
 #pragma once
+#include "../../utils/helpers.h"
+
+#include <glm/glm.hpp>
 
 struct nengine_config
 {
@@ -11,16 +14,31 @@ struct scene
 
 };
 
+enum nengine_status
+{
+    STOPPED = 0,
+    RUNNING = 1,
+    HALTED = 2,
+    ERROR = -1
+};
+
+
 class nengine
 {
 public:
     nengine();
     nengine(nengine_config in_config);
+    static nengine_utils::version nengine_version;
+    
+public:
+    void initialize();
+    inline int get_status(){ return status; }
+    void shutdown();
 
-protected:
-    void main();
+protected:    
     void tick();
 
 private:
     nengine_config config;
+    nengine_status status = nengine_status::STOPPED;
 };

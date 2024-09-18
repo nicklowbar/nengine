@@ -17,7 +17,10 @@
         //--------------------------------------------------------------------------
         Unity( '$ProjectName$-Unity-$Platform$-$BuildConfigName$' )
         {
-            .UnityInputPath             = '$ProjectPath$/'
+            .UnityInputPath             =   {
+                                                '$ProjectPath$/',
+                                                '$GlfwIncludePath$/'
+                                            }
             .UnityOutputPath            = '$OutputBase$/$ProjectPath$/'
             .UnityOutputPattern         = '$ProjectName$_Unity*.cpp'
         }
@@ -30,11 +33,24 @@
             .CompilerInputUnity         = '$ProjectName$-Unity-$Platform$-$BuildConfigName$'
 
             // Extra Compiler Options
-            .CompilerOptions            + .UseExceptions // Test framework uses exceptions
+            .CompilerOptions            + " -I$GlfwIncludePath$"
+                                        + ' -I$GlmIncludePath$' // inlcude GLM
+                                        // Disable warnings for included dependencies
+                                        // Glfw
+                                        + " -Wno-documentation-deprecated-sync"
+                                        + " -Wno-documentation"
+                                        // TODO: for some reason GLFW macros are detected as unused...
+                                        + " -Wno-unused-macros"
+                                        // TODO: remove this once we have an actual application loop.
+                                        + " -Wno-unreachable-code"
 
             // Output
             .CompilerOutputPath         = '$OutputBase$/$ProjectPath$/'
         }
+
+        // Dependencies
+        //--------------------------------------------------------------------------
+        //Using(.'Glfw-$Platform$-$BuildConfigName$-LibPath')
         
         // Windows Manifest
         //--------------------------------------------------------------------------
@@ -48,9 +64,14 @@
         //--------------------------------------------------------------------------
         Executable( '$ProjectName$-Exe-$Platform$-$BuildConfigName$' )
         {
+            .PreBuildDependencies           =   {
+                                                    'Glfw-Lib-$Platform$-$BuildConfigName$-Build'
+
+                                                }
             .Libraries                      = {
                                                 'nengine-app-Lib-$Platform$-$BuildConfigName$'
                                                 'nengine-Lib-$Platform$-$BuildConfigName$'
+                                                'Glfw-Lib-$Platform$-$BuildConfigName$'
                                               }
             .LinkerOutput                   = '$OutputBase$/$ProjectPath$/$ProjectName$$ExeExtension$'
             #if __WINDOWS__
@@ -70,6 +91,7 @@
             #endif
             #if __LINUX__
                 .LinkerOptions                  + ' -pthread -lrt'
+                                                + ' -lvulkan'
             #endif
         }
         Alias( '$ProjectName$-$Platform$-$BuildConfigName$' ) { .Targets = '$ProjectName$-Exe-$Platform$-$BuildConfigName$' }

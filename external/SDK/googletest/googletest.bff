@@ -147,18 +147,14 @@
         // Static Library
         ObjectList( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' )
         {
-            Print( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' )
             // Input
             .CompilerInputFiles  = '$GoogleTestSourcePath$/gtest-all.cc'
-
-            Print( '$GoogleTestSourcePath$' )
+            .CompilerInputPattern = '*.cc'
 
             // Compile Options
             .CompilerOptions    = .CompilerOptions
                                 + .GoogleTestCompilerOptions
                                 - "-fsanitize=address"
-            
-            .CompilerInputPattern = '*.cc'
             
             // Output
             .CompilerOutputPath = .GoogleTestOutputPath

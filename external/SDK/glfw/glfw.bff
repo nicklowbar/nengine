@@ -1,0 +1,227 @@
+.GlfwBasePath     = "external/SDK/glfw/glfw"
+.GlfwIncludePath  = '$GlfwBasePath$/include'
+.GlfwSourcePath   = '$GlfwBasePath$/src/'
+
+{
+    .ProjectName = "Glfw"
+    .ProjectPath = '$GlfwBasePath$'
+
+
+
+    .GlfwOptions_x64                =   [
+                                            .GlfwCompilerOptions    =   ' -I$GlfwIncludePath$'
+                                                                    +   ' -I$GlfwSourcePath$'
+                                                                    +   ' -GS -W4 -WX -wd4251 -wd4275 -nologo -J -MT'
+                                                                    +   ' -D_UNICODE -DUNICODE -DWIN32 -D_WIN32'
+                                                                    +   ' -DSTRICT -DWIN32_LEAN_AND_MEAN'
+                                                                    +   ' -EHsc -D_HAS_EXCEPTIONS=1'
+                                                                    +   ' -GR-'
+                                                                    +   ' -wd4702'
+                                                                    +   ' -utf-8'
+
+                                                                    // Project-defined environment variables:
+                                                                    +   ' -D GLFW_BUILD_WIN32=ON'
+
+                                                                    // Project-defined warning suppressions
+
+                                            .GlfwEnvironment        =   ' '
+                                        ]
+
+    .GlfwOptions_x64Clang           =   [
+                                            .GlfwCompilerOptions    =   ' -I$GlfwIncludePath$'
+                                                                    +   ' -I$GlfwBasePath$'
+                                                                    +   ' -lrt'
+                                                                    +   ' -Wall -Wshadow -Wundef'
+                                                                    +   ' -fexceptions'
+                                                                    +   ' -Wconversion'                                                               
+                                                                    +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                    +   ' -Wchar-subscripts'
+
+                                                                    // Project-defined environment variables:
+                                                                    +   ' -D GLFW_BUILD_WIN32=ON'
+
+                                                                    // Project-defined warning suppressions
+
+                                            .GlfwEnvironment        =   ' '
+                                        ]
+                                            
+    .GlfwOptions_x64Linux           =   [
+                                            .GlfwCompilerOptions    =   ' -I$GlfwIncludePath$'
+                                                                    +   ' -I$GlfwBasePath$'
+                                                                    +   ' -Wall -Wshadow -Wundef'
+                                                                    +   ' -fexceptions'
+                                                                    +   ' -Wextra'
+
+                                                                    // Project-defined environment variables:
+                                                                    +   ' -D GLFW_BUILD_WAYLAND=ON'
+                                                                    +   ' -D GLFW_BUILD_X11=ON'
+
+                                                                    // Project-defined warning suppressions
+                                                                    +   ' -Wno-reserved-macro-identifier'
+                                                                    +   ' -Wno-unused-parameter'
+                                                                    +   ' -Wno-documentation-deprecated-sync'
+                                                                    +   ' -Wno-documentation'
+                                                                    +   ' -Wno-extra-semi-stmt'
+                                                                    +   ' -Wno-implicit-int-conversion'
+                                                                    +   ' -Wno-sign-compare'
+                                                                    +   ' -Wno-declaration-after-statement'
+                                                                    +   ' -Wno-missing-field-initializers'
+                                                                    +   ' -Wno-missing-braces'
+                                                                    +   ' -Wno-maybe-uninitialized'
+
+                                            .GlfwEnvironment        =   ' '
+                                        ]
+
+    .GlfwOptions_x64ClangLinux      =   [
+                                            .GlfwCompilerOptions    =   ' -I$GlfwIncludePath$'
+                                                                    +   ' -I$GlfwBasePath$'
+                                                                    +   ' -Wall -Wshadow -Wundef'
+                                                                    +   ' -fexceptions'
+                                                                    +   ' -Wconversion'                                                               
+                                                                    +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                    +   ' -Wchar-subscripts'
+
+                                                                    // Project-defined environment variables:
+                                                                    +   ' -D GLFW_BUILD_WAYLAND=ON'
+                                                                    +   ' -D GLFW_BUILD_X11=ON'
+
+                                                                    // Project-defined warning suppressions
+                                                                    +   ' -Wno-reserved-identifier'
+                                                                    +   ' -Wno-reserved-macro-identifier'
+                                                                    +   ' -Wno-unused-parameter'
+                                                                    +   ' -Wno-documentation-deprecated-sync'
+                                                                    +   ' -Wno-documentation'
+                                                                    +   ' -Wno-gnu-empty-initializer'
+                                                                    +   ' -Wno-pedantic'
+                                                                    +   ' -Wno-implicit-int-float-conversion'
+                                                                    +   ' -Wno-implicit-int-conversion'
+                                                                    +   ' -Wno-extra-semi-stmt'
+                                                                    +   ' -Wno-sign-compare'
+                                                                    +   ' -Wno-sign-conversion'
+                                                                    +   ' -Wno-cast-qual'
+                                                                    +   ' -Wno-missing-field-initializers'
+                                                                    +   ' -Wno-missing-braces'
+                                                                    +   ' -Wno-declaration-after-statement'
+                                                                    +   ' -Wno-double-promotion'
+                                                                    +   ' -Wno-float-equal'
+
+                                            .GlfwEnvironment        =   ' '
+                                        ]
+    
+    // TODO: finish OSX build options.
+    .GlfwOptions_x64OSX             =   [
+                                            .GlfwCompilerOptions    =   ' -I$GlfwIncludePath$'
+                                                                    +   ' -I$GlfwBasePath$'
+                                                                    +   ' -Wall -Wshadow -Wundef'
+                                                                    +   ' -fexceptions'
+                                                                    +   ' -Wconversion'                                                               
+                                                                    +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                    +   ' -Wchar-subscripts'
+                                                                    
+                                                                    // Project-defined environment variables:
+                                                                    +   ' -D GLFW_BUILD_COCOA=ON'
+
+                                                                    // Project-defined warning suppressions
+
+                                            .GlfwEnvironment        =   ' '
+                                        ]
+
+    .GlfwOptions_ARMOSX             =   [
+                                            .GlfwCompilerOptions    =   ' -I$GlfwIncludePath$'
+                                                                    +   ' -I$GlfwBasePath$'
+                                                                    +   ' -lrt'
+                                                                    +   ' -Wall -Wshadow -Wundef'
+                                                                    +   ' -fexceptions'
+                                                                    +   ' -Wconversion'                                                               
+                                                                    +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                    +   ' -Wchar-subscripts'
+
+                                                                    // Project-defined environment variables:
+                                                                    +   ' -D GLFW_BUILD_COCOA=ON'
+
+                                                                    // Project-defined warning suppressions
+                                                                     
+                                            .GlfwEnvironment        =   ' '
+                                        ]
+
+    .GlfwOptions_OSX                =   [
+                                            .GlfwCompilerOptions    =   ' -I$GlfwIncludePath$'
+                                                                    +   ' -I$GlfwBasePath$'
+                                                                    +   ' -lrt'
+                                                                    +   ' -Wall -Wshadow -Wundef'
+                                                                    +   ' -fexceptions'
+                                                                    +   ' -Wconversion'                                                               
+                                                                    +   ' -W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Winline -Wredundant-decls'
+                                                                    +   ' -Wchar-subscripts'
+
+                                                                    // Project-defined environment variables:
+                                                                    +   ' -D GLFW_BUILD_COCOA=ON'
+                                                                    +   ' -D _GLFW_X11'
+
+                                                                    // Project-defined warning suppressions
+
+                                            .GlfwEnvironment        =   ' '
+                                        ]
+
+    // Library
+    //--------------------------------------------------------------------------
+    //.ProjectConfigs = {}
+    //ForEach( .BuildConfig in .BuildConfigs )
+    //{
+    //    Using( .BuildConfig )
+
+    //    .OutputBase + '\$Platform$-$BuildConfigName$'
+
+    //    .GlfwOutputPath   = '$OutputBase$/external/SDK/$ProjectName$/'
+
+    //    Using( ."GlfwOptions_$Platform$" )
+
+        // Static Library
+    //    ObjectList( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' )
+    //    {
+            // Input
+    //        .CompilerInputPath      = '$GlfwSourcePath$'
+    //        .CompilerInputPattern   = "*.c"
+
+            // Compile Options
+    //        .CompilerOptions        = .CompilerOptionsC
+    //                                + .GlfwCompilerOptions
+            
+            // Output
+    //        .CompilerOutputPath     = .GlfwOutputPath
+    //    }
+    //}
+
+    ForEach( .BuildConfig in .BuildConfigs )
+    {
+        Using( .BuildConfig )
+
+        .OutputBase + '\$Platform$-$BuildConfigName$'
+        .GlfwOutputPath   = '$OutputBase$/external/SDK/$ProjectName$'
+
+        Exec ( '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Configure' )
+        {
+            .ExecExecutable             =   '/usr/bin/cmake'
+            .ExecAlways                 =   true
+            .ExecUseStdOutAsOutput      =   true
+            .ExecArguments              =   ' -S $GlfwBasePath$'
+                                        +   ' -B $GlfwOutputPath$'
+                                        +   ' -DBUILD_SHARED_LIBS=OFF'
+                                        +   ' -DGLFW_BUILD_EXAMPLES=OFF'
+                                        +   ' -DGLFW_BUILD_TESTS=OFF'
+            .ExecOutput                 =   '$GlfwOutputPath$/out-configure.txt'
+        }
+
+        Exec ( '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Build' )
+        {
+            .PreBuildDependencies       =   '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Configure'
+            .ExecWorkingDir             =   '$GlfwOutputPath$'
+            .ExecExecutable             =   '/usr/bin/make'
+            .ExecAlways                 =   true
+            .ExecUseStdOutAsOutput      =   true
+            .ExecOutput                 =   '$GlfwOutputPath$/out-make.txt'
+        }
+
+        Alias( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' ) { .Targets = '$GlfwOutputPath$/src/libglfw3.a' }
+    }
+}

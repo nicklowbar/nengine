@@ -1,0 +1,40 @@
+.GlmBasePath     = "external/SDK/glm/glm"
+.GlmIncludePath  = '$GlmBasePath$'
+.GlmSourcePath   = '$GlmBasePath$/glm'
+
+{
+    .ProjectName = "Glm"
+    .ProjectPath = '$GlmBasePath$'
+
+    ForEach( .BuildConfig in .BuildConfigs )
+    {
+        Using( .BuildConfig )
+
+        .OutputBase + '\$Platform$-$BuildConfigName$'
+        .GlmOutputPath   = '$OutputBase$/external/SDK/$ProjectName$'
+
+        Exec ( '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Configure' )
+        {
+            .ExecExecutable             =   '/usr/bin/cmake'
+            .ExecAlways                 =   true
+            .ExecUseStdOutAsOutput      =   true
+            .ExecArguments              =   ' -S $GlmBasePath$'
+                                        +   ' -B $GlmOutputPath$'
+                                        +   ' -D BUILD_SHARED_LIBS=OFF'
+                                        +   ' -DGLM_BUILD_TESTS=OFF'
+            .ExecOutput                 =   '$GlmOutputPath$/out-configure.txt'
+        }
+
+        Exec ( '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Build' )
+        {
+            .PreBuildDependencies       =   '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Configure'
+            .ExecWorkingDir             =   '$GlmOutputPath$'
+            .ExecExecutable             =   '/usr/bin/make'
+            .ExecAlways                 =   true
+            .ExecUseStdOutAsOutput      =   true
+            .ExecOutput                 =   '$GlmOutputPath$/out-make.txt'
+        }
+
+        Alias( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' ) { .Targets = '$GlmOutputPath$/src/libglm3.a' }
+    }
+}

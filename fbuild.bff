@@ -387,6 +387,8 @@ Settings
 
 // External dependencies
 #include "external/SDK/googletest/googletest.bff"
+#include "external/SDK/glfw/glfw.bff"
+#include "external/SDK/glm/glm.bff"
 
 // NeNgine Core
 #include "src/core/nengine.bff"

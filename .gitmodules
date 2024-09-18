@@ -5,3 +5,6 @@
 [submodule "external/SDK/glfw/glfw"]
 	path = external/SDK/glfw/glfw
 	url = git@github.com:glfw/glfw.git
+[submodule "external/SDK/glm/glm"]
+	path = external/SDK/glm/glm
+	url = git@github.com:icaven/glm.git
