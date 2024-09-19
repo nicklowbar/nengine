@@ -154,6 +154,7 @@ Settings
 .Profile_Optimizations =
 [
     .CompilerOptions                = ' -O2'
+                                    + ' -DNDEBUG'
     .CompilerOptionsC               = .CompilerOptions
 ]
 .Release_Optimizations =
@@ -162,6 +163,7 @@ Settings
     .CompilerOptionsDeoptimized     = .CompilerOptions
                                     - ' -O2'
                                     + ' -O0'
+                                    + ' -DNDEBUG'
 ]
 
 // X64
