@@ -13,6 +13,7 @@
 #include <sstream>
 #include <memory>
 #include <vector>
+#include <queue>
 #include <string>
 #include <string.h>
 
@@ -68,7 +69,7 @@ void glfw_cleanup(GLFWwindow* window)
 }
 
 // Vulkan callbacks
-VkResult vulkan_CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+VkResult vulkan_CreateDebugUtilsMessengerEXT(const VkInstance& instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr) {
         return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
@@ -77,7 +78,7 @@ VkResult vulkan_CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugU
     }
 }
 
-VkResult vulkan_DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+VkResult vulkan_DestroyDebugUtilsMessengerEXT(const VkInstance& instance, VkDebugUtilsMessengerEXT& debugMessenger, const VkAllocationCallbacks* pAllocator) {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr) {
         func(instance, debugMessenger, pAllocator);
@@ -109,7 +110,7 @@ VkResult vulkan_initialize(VkInstance& vulkan_instance)
     std::vector<VkExtensionProperties> vulkan_extensions(vulkan_extension_count);
     vkEnumerateInstanceExtensionProperties(nullptr, &vulkan_extension_count, vulkan_extensions.data());
     std::cout << applicationName << ": Initialized Vulkan backend. There are " << vulkan_extension_count << " supported extensions:" << std::endl;
-    for(auto extension : vulkan_extensions)
+    for (auto extension : vulkan_extensions)
     {
         std::cout << "\t" << extension.extensionName << std::endl;
     }
@@ -132,7 +133,7 @@ VkResult vulkan_initialize(VkInstance& vulkan_instance)
     std::vector<const char*> glfw_extensions;
 
     auto requiredInstanceExtensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count); 
-    for(unsigned int i = 0; i < static_cast<unsigned int>(glfw_extension_count); ++i)
+    for (unsigned int i = 0; i < static_cast<unsigned int>(glfw_extension_count); ++i)
     {
         glfw_extensions.push_back(requiredInstanceExtensions[i]);
     }
@@ -175,7 +176,7 @@ VkResult vulkan_initialize(VkInstance& vulkan_instance)
             bool layer_found = false;
             for (const auto& layer_properties : vulkan_available_layers)
             {
-                if(strcmp(layer_name, layer_properties.layerName) == 0)
+                if (strcmp(layer_name, layer_properties.layerName) == 0)
                 {
                     layer_found = true;
                     break;
@@ -191,9 +192,9 @@ VkResult vulkan_initialize(VkInstance& vulkan_instance)
         }
 
         std::cout << "Using Vulkan validation layers: " <<  std::endl;
-        for(unsigned int i = 0; i < vulkan_validation_layers.size(); ++i)
+        for (unsigned int i = 0; i < vulkan_validation_layers.size(); ++i)
         {
-            std::cout << vulkan_validation_layers[i] << std::endl;
+            std::cout << "\t" << vulkan_validation_layers[i] << std::endl;
         }
     }
     #endif // NDEBUG
@@ -213,11 +214,54 @@ VkResult vulkan_initialize(VkInstance& vulkan_instance)
     }
 
     std::cout << applicationName << ": Created Vulkan Instance with extensions: " <<  std::endl;
-    for(unsigned int i = 0; i < glfw_extension_count; ++i)
+    for (unsigned int i = 0; i < glfw_extension_count; ++i)
     {
         std::cout << "\t" << glfw_extensions[i] << std::endl;
     }
     return VK_SUCCESS;
+}
+
+bool vulkan_is_physical_device_suitable(VkPhysicalDevice physical_device)
+{
+    // TODO: consider cases where we may want to disregard a potential device.
+    UNUSED(physical_device);
+    return true;
+}
+
+unsigned long long vulkan_get_physical_device_score(const VkPhysicalDevice& physical_device,
+                                                    const VkPhysicalDeviceProperties& device_properties,
+                                                    const VkPhysicalDeviceFeatures& device_features,
+                                                    const VkPhysicalDeviceMemoryProperties& device_memory_properties)
+{
+    UNUSED(physical_device);
+    UNUSED(device_features);
+
+    unsigned long long score = 0;
+    switch (device_properties.deviceType)
+    {
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            score += 1000; // greatly prefer discrete GPUs
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            score += 50;
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            score += 1;
+            break;
+        case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+        default:
+            score += 0;
+            break;
+    }
+
+    // Weight device selection by memory size in MB
+    // TODO: this can cause discrete devices in systems with large shared memory to be preferred, keep an eye on this for now.
+    if (device_memory_properties.memoryHeapCount > 0)
+    {
+        score *= (device_memory_properties.memoryHeaps[0].size / 1000000);
+    }
+
+    return score;
 }
 
 VkResult vulkan_pick_physical_device(const VkInstance& vulkan_instance, VkPhysicalDevice& vulkan_physical_device)
@@ -227,12 +271,61 @@ VkResult vulkan_pick_physical_device(const VkInstance& vulkan_instance, VkPhysic
     std::vector<VkPhysicalDevice> vulkan_physical_devices(vulkan_physical_device_count);
     vkEnumeratePhysicalDevices(vulkan_instance, &vulkan_physical_device_count, vulkan_physical_devices.data());
 
-    UNUSED(vulkan_physical_device);
+    std::cout << applicationName << ": Found " << vulkan_physical_device_count << " GPUs: " << std::endl;
+
+    typedef std::tuple<VkPhysicalDevice, unsigned int> VkDeviceRanking;
+    auto device_ranking_greater_than_comparitor = [=](VkDeviceRanking lhs, VkDeviceRanking rhs)
+    {
+        return std::get<1>(lhs) < std::get<1>(rhs);
+    };
+
+    std::priority_queue<VkDeviceRanking,
+                        std::vector<VkDeviceRanking>,
+                        decltype(device_ranking_greater_than_comparitor)>
+                        suitable_vulkan_devices(device_ranking_greater_than_comparitor);
+    for (const auto device : vulkan_physical_devices)
+    {
+        VkPhysicalDeviceProperties device_properties;
+        VkPhysicalDeviceFeatures device_features;
+        VkPhysicalDeviceMemoryProperties device_memory_properties;
+
+        vkGetPhysicalDeviceProperties(device, &device_properties);
+        vkGetPhysicalDeviceFeatures(device, &device_features);
+        vkGetPhysicalDeviceMemoryProperties(device, &device_memory_properties);
+
+        std::cout << "\t" << device_properties.deviceName << ": ";
+
+        if (vulkan_is_physical_device_suitable(device))
+        {
+            unsigned int device_score = vulkan_get_physical_device_score(device, device_properties, device_features, device_memory_properties);
+            suitable_vulkan_devices.push(std::make_tuple(device, device_score));
+            std::cout << " - Capability Score: " << device_score;
+        }
+        else 
+        {
+            std::cout << " - NOT SUITABLE";
+        }
+
+        std::cout << std::endl;
+    }
+
+    if (suitable_vulkan_devices.empty())
+    {
+        std::ostringstream ss;
+        ss << applicationName << ": Unable to find a suitable GPU. " << std::endl;
+
+        throw std::runtime_error(ss.str());
+    }
+
+    vulkan_physical_device = std::get<0>(suitable_vulkan_devices.top());
+    VkPhysicalDeviceProperties device_properties;
+    vkGetPhysicalDeviceProperties(vulkan_physical_device, &device_properties);
+    std::cout << applicationName << ": Using device: " << device_properties.deviceName << std::endl;
     
     return VK_SUCCESS;
 }
 
-VkResult vulkan_initialize_debug_utils(const VkInstance& vulkan_instance, VkDebugUtilsMessengerEXT vulkan_debug_messenger)
+VkResult vulkan_initialize_debug_utils(const VkInstance& vulkan_instance, VkDebugUtilsMessengerEXT& vulkan_debug_messenger)
 {
     // enable debug messaging from the Vulkan instance
     VkDebugUtilsMessengerCreateInfoEXT vulkan_debug_utils_messenger_createInfo{};
@@ -263,12 +356,6 @@ void vulkan_cleanup(VkInstance& vulkan_instance, VkDebugUtilsMessengerEXT& vulka
     vulkan_DestroyDebugUtilsMessengerEXT(vulkan_instance, vulkan_debug_messenger, nullptr);
     vkDestroyInstance(vulkan_instance, nullptr);
 }
-
-bool vulkan_is_physical_device_suitable(const VkPhysicalDevice& device)
-{
-    UNUSED(device);
-    return true;
-};
 
 int main(int argc, char** argv)
 {
