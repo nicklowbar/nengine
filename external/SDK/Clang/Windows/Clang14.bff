@@ -148,10 +148,10 @@ Compiler( 'Compiler-Clang14-NonCL' )
                                     + ' -Wno-switch-enum'               // %u enumeration values not explicitly handled in switch: '%s', '%s'...
 
     .CompilerOptions                = ' /TP -o"%2" "%1" $CommonCompilerOptions$'
-                                    + ' /std:c++17'                     // Enable c++17 features
+                                    + ' /std:c++20'                     // Enable c++20 features
     .CompilerOptionsC               = ' /TC -o"%2" "%1" $CommonCompilerOptions$'
     .PCHOptions                     = ' /TP $CommonCompilerOptions$ "%1" /Fo"%3" /Fp"%2" /Yc"PrecompiledHeader.h"'
-                                    + ' /std:c++17'                     // Enable c++17 features
+                                    + ' /std:c++20'                     // Enable c++20 features
 
     // Exception Control
     .UseExceptions                  = ' /EHs'                                    
@@ -199,7 +199,7 @@ Compiler( 'Compiler-Clang14-NonCL' )
                                     + ' -Wno-switch-enum'               // %u enumeration values not explicitly handled in switch: '%s', '%s'...
 
     .CompilerOptions                = ' -x c++ -o"%2" "%1" $CommonCompilerOptions$'
-                                    + ' -std=c++17'                     // Enable c++17 features
+                                    + ' -std=c++20'                     // Enable c++20 features
     .CompilerOptionsC               = ' -x c -o"%2" "%1" $CommonCompilerOptions$'
 ]
 
