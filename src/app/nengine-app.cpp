@@ -13,8 +13,10 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
+#include <algorithm>
 #include <bitset>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <queue>
@@ -370,6 +372,70 @@ VulkanSwapChainSupportDetails vulkan_query_swap_chain_support_details(const VkPh
     return details;
 }
 
+VkSurfaceFormatKHR vulkan_choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats)
+{
+    // if the surface has no defined format, use a default format.
+    if (available_formats.size() == 1 && available_formats[0].format == VK_FORMAT_UNDEFINED)
+    {
+        return {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
+    }
+
+    // 
+    for (const auto& available_format : available_formats)
+    {
+        if (available_format.format == VK_FORMAT_B8G8R8A8_UNORM && available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+            return available_format;
+        }
+    }
+
+    return available_formats[0];
+}
+
+VkPresentModeKHR vulkan_choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes)
+{
+    VkPresentModeKHR best_mode = VK_PRESENT_MODE_FIFO_KHR;
+
+    for (const auto& available_present_mode : available_present_modes)
+    {
+        if (available_present_mode == VK_PRESENT_MODE_MAILBOX_KHR)
+        {
+            return available_present_mode;
+        }
+        else if (available_present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR)
+        {
+            best_mode = available_present_mode;
+        }
+    }
+
+    return best_mode;
+}
+
+VkExtent2D vulkan_choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities, const GLFWwindow* window)
+{
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
+        return capabilities.currentExtent;
+    }
+    else
+    {
+        int width, height;
+        // due to GLFW api, we need to remove const here, even though the expectation is that this function does not modify the window pointer
+        glfwGetFramebufferSize((GLFWwindow*)window, &width, &height);
+
+        VkExtent2D actualExtent = 
+        {
+            static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height)
+        };
+
+        actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+        return actualExtent;
+    }
+}
+
 bool vulkan_is_physical_device_suitable(const VkPhysicalDevice& physical_device,
                                         const VkPhysicalDeviceProperties& device_properties,
                                         const VkPhysicalDeviceFeatures& device_features,
@@ -608,8 +674,158 @@ void vulkan_create_logical_device(VkPhysicalDevice& physical_device, VkDevice& d
     std::cout << applicationName << ": Created Vulkan logical device." << std::endl;
 }
 
-void vulkan_cleanup(VkInstance& vulkan_instance, VkDebugUtilsMessengerEXT& vulkan_debug_messenger, VkDevice& vulkan_device, VkSurfaceKHR& vulkan_surface)
+void vulkan_create_swap_chain(  const VkPhysicalDevice& physical_device, 
+                                const VkDevice& device, 
+                                const GLFWwindow* window, 
+                                const VkSurfaceKHR& surface, 
+                                VkSwapchainKHR& swap_chain,
+                                VkFormat& swap_chain_image_format,
+                                VkExtent2D& swap_chain_extent,
+                                std::vector<VkImage> &swap_chain_images)
 {
+    std::cout << applicationName << ": Creating Vulkan swap chain." << std::endl;
+
+    VulkanSwapChainSupportDetails swap_chain_support = vulkan_query_swap_chain_support_details(physical_device, surface);
+    VkSurfaceFormatKHR surface_format = vulkan_choose_swap_surface_format(swap_chain_support.formats);
+    VkPresentModeKHR present_mode = vulkan_choose_swap_present_mode(swap_chain_support.present_modes);
+    VkExtent2D extent = vulkan_choose_swap_extent(swap_chain_support.capabilities, window);
+    swap_chain_extent = extent;
+
+    uint32_t image_count = swap_chain_support.capabilities.minImageCount + 1;
+    if (swap_chain_support.capabilities.maxImageCount > 0 && image_count > swap_chain_support.capabilities.maxImageCount)
+    {
+        image_count = swap_chain_support.capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR swap_chain_create_info = {};
+    swap_chain_create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swap_chain_create_info.surface = surface;
+    swap_chain_create_info.minImageCount = image_count;
+    swap_chain_create_info.imageFormat = surface_format.format;
+    swap_chain_image_format = surface_format.format;
+    swap_chain_create_info.imageColorSpace = surface_format.colorSpace;
+    swap_chain_create_info.imageExtent = extent;
+    swap_chain_create_info.imageArrayLayers = 1;
+    swap_chain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    VulkanQueueFamilyIndices indices = {};
+    vulkan_find_queue_families(physical_device, indices, surface);
+
+    uint32_t queue_family_indices[] = {indices.graphics_family.value(), indices.present_family.value()};
+
+    if (indices.graphics_family != indices.present_family)
+    {
+        swap_chain_create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        swap_chain_create_info.queueFamilyIndexCount = 2;
+        swap_chain_create_info.pQueueFamilyIndices = queue_family_indices;
+    } 
+    else
+    {
+        swap_chain_create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swap_chain_create_info.queueFamilyIndexCount = 0;
+        swap_chain_create_info.pQueueFamilyIndices = nullptr;
+    }
+
+    swap_chain_create_info.preTransform = swap_chain_support.capabilities.currentTransform;
+    swap_chain_create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swap_chain_create_info.presentMode = present_mode;
+    swap_chain_create_info.clipped = VK_TRUE;
+    swap_chain_create_info.oldSwapchain = VK_NULL_HANDLE;
+
+    std::cout << applicationName << ": Creating Vulkan swap chain with the following properties:" << std::endl;
+    std::cout << "\tVulkan Surface: " << swap_chain_create_info.surface << std::endl;
+    std::cout << "\tMinimum Image Count: " << swap_chain_create_info.minImageCount << std::endl;
+    std::cout << "\tImage Format: " << string_VkFormat(swap_chain_create_info.imageFormat) << std::endl;
+    std::cout << "\tImage Color Space: " << string_VkColorSpaceKHR(swap_chain_create_info.imageColorSpace) << std::endl;
+    std::cout << "\tImage Extent: " << swap_chain_create_info.imageExtent.width << " x " << swap_chain_create_info.imageExtent.height << std::endl;
+    std::cout << "\tImage Array Layers: " << swap_chain_create_info.imageArrayLayers << std::endl;
+    std::cout << "\tImage Usage: " << string_VkImageUsageFlags(swap_chain_create_info.imageUsage) << std::endl;
+    std::cout << "\tImage Sharing Mode: " << string_VkSharingMode(swap_chain_create_info.imageSharingMode) << std::endl;
+    std::cout << "\tQueue Family Index Count: " << swap_chain_create_info.queueFamilyIndexCount << std::endl;
+    std::cout << "\tPre Transform: " << string_VkSurfaceTransformFlagBitsKHR(swap_chain_create_info.preTransform) << std::endl;
+    std::cout << "\tComposite Alpha: " << string_VkCompositeAlphaFlagBitsKHR(swap_chain_create_info.compositeAlpha) << std::endl;
+    std::cout << "\tPresent Mode: " << string_VkPresentModeKHR(swap_chain_create_info.presentMode) << std::endl;
+    std::cout << "\tClipped: " << (swap_chain_create_info.clipped ? "YES" : "NO") << std::endl;
+    std::cout << "\tOld Swapchain: " << swap_chain_create_info.oldSwapchain << std::endl;
+
+    if (vkCreateSwapchainKHR(device, &swap_chain_create_info, nullptr, &swap_chain) != VK_SUCCESS)
+    {
+        std::ostringstream oss;
+        oss << applicationName << ": Vulkan - Failed to create swap chain.";
+        throw std::runtime_error(oss.str());
+    }
+
+    // Retrieve references to swap chain images.
+    vkGetSwapchainImagesKHR(device, swap_chain, &image_count, nullptr);
+    swap_chain_images.resize(image_count);
+    vkGetSwapchainImagesKHR(device, swap_chain, &image_count, swap_chain_images.data());
+
+    std::cout << applicationName << ": Created Vulkan swap chain." << std::endl;
+}
+
+void vulkan_create_image_views( const VkDevice& device, 
+                                const std::vector<VkImage>& swap_chain_images, 
+                                const VkFormat& swap_chain_image_format,
+                                std::vector<VkImageView>& swap_chain_image_views)
+{
+    std::cout << applicationName << ": Creating Vulkan image views." << std::endl;
+
+    std::cout << applicationName << ": Vulkan image view creation parameters:" << std::endl;
+    swap_chain_image_views.resize(swap_chain_images.size());
+    for (size_t i = 0; i < swap_chain_images.size(); ++i)
+    {
+        std::cout << "\tImage View: " << i << std::endl;
+
+        VkImageViewCreateInfo image_view_create_info = {};
+        image_view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        image_view_create_info.image = swap_chain_images[i];
+        image_view_create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        image_view_create_info.format = swap_chain_image_format;
+        image_view_create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        image_view_create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        image_view_create_info.subresourceRange.baseMipLevel = 0;
+        image_view_create_info.subresourceRange.levelCount = 1;
+        image_view_create_info.subresourceRange.baseArrayLayer = 0;
+        image_view_create_info.subresourceRange.layerCount = 1;
+        if (vkCreateImageView(device, &image_view_create_info, nullptr, &swap_chain_image_views[i]) != VK_SUCCESS)
+        {
+            std::ostringstream oss;
+            oss << applicationName << ": Vulkan - Failed to create image views.";
+            throw std::runtime_error(oss.str());
+        }
+
+        std::cout << "\t\tImage: " << swap_chain_images[i] << std::endl;
+        std::cout << "\t\tView Type: " << string_VkImageViewType(image_view_create_info.viewType) << std::endl;
+        std::cout << "\t\tFormat: " << string_VkFormat(image_view_create_info.format) << std::endl;
+        std::cout << "\t\tComponent R: " << string_VkComponentSwizzle(image_view_create_info.components.r) << std::endl;
+        std::cout << "\t\tComponent G: " << string_VkComponentSwizzle(image_view_create_info.components.g) << std::endl;
+        std::cout << "\t\tComponent B: " << string_VkComponentSwizzle(image_view_create_info.components.b) << std::endl;
+        std::cout << "\t\tComponent A: " << string_VkComponentSwizzle(image_view_create_info.components.a) << std::endl;
+        std::cout << "\t\tAspect Mask: " << string_VkImageAspectFlags(image_view_create_info.subresourceRange.aspectMask) << std::endl;
+        std::cout << "\t\tBase Mip Level: " << image_view_create_info.subresourceRange.baseMipLevel << std::endl;
+        std::cout << "\t\tLevel Count: " << image_view_create_info.subresourceRange.levelCount << std::endl;
+        std::cout << "\t\tBase Array Layer: " << image_view_create_info.subresourceRange.baseArrayLayer << std::endl;
+        std::cout << "\t\tLayer Count: " << image_view_create_info.subresourceRange.layerCount << std::endl;
+    }
+
+    std::cout << applicationName << ": Created Vulkan image views." << std::endl;
+}
+
+void vulkan_cleanup(VkInstance& vulkan_instance, 
+                    VkDebugUtilsMessengerEXT& vulkan_debug_messenger, 
+                    VkDevice& vulkan_device, 
+                    VkSurfaceKHR& vulkan_surface,
+                    VkSwapchainKHR& swap_chain,
+                    std::vector<VkImageView>& swap_chain_image_views)
+{
+    for (auto image_view : swap_chain_image_views)
+    {
+        vkDestroyImageView(vulkan_device, image_view, nullptr);
+    }
+    vkDestroySwapchainKHR(vulkan_device, swap_chain, nullptr);
     vkDestroySurfaceKHR(vulkan_instance, vulkan_surface, nullptr);
     vkDestroyDevice(vulkan_device, nullptr);
     vulkan_DestroyDebugUtilsMessengerEXT(vulkan_instance, vulkan_debug_messenger, nullptr);
@@ -635,7 +851,7 @@ int main(int argc, char** argv)
 
     VkSurfaceKHR surface = VK_NULL_HANDLE;
 
-    // Finally, create the window and rendering surface with GLFW.
+    // Create the window and rendering surface with GLFW.
     GLFWwindow* window = glfw_create_window(config);
 
     if (glfwCreateWindowSurface(vulkan_instance, window, nullptr, &surface) != VK_SUCCESS)
@@ -651,14 +867,29 @@ int main(int argc, char** argv)
 
     std::cout << applicationName << ": Created window surface.";
 
-    // create vulkan device
+    // create the logical vulkan device
     VkDevice vulkan_device = VK_NULL_HANDLE;
     VkQueue vulkan_graphics_queue = VK_NULL_HANDLE;
     VkQueue vulkan_present_queue = VK_NULL_HANDLE;
     vulkan_create_logical_device(vulkan_physical_device, vulkan_device, vulkan_graphics_queue, vulkan_present_queue, surface);
 
     // initialize the swapchain
+    VkFormat vulkan_swap_chain_image_format = VK_FORMAT_UNDEFINED;
+    VkExtent2D vulkan_swap_chain_extent = {0, 0};
+    VkSwapchainKHR vulkan_swap_chain = VK_NULL_HANDLE;
+    std::vector<VkImage> swap_chain_images;
+    vulkan_create_swap_chain(   vulkan_physical_device, 
+                                vulkan_device, 
+                                window, 
+                                surface, 
+                                vulkan_swap_chain,
+                                vulkan_swap_chain_image_format,
+                                vulkan_swap_chain_extent,
+                                swap_chain_images);
 
+    // create image views
+    std::vector<VkImageView> vulkan_swap_chain_image_views(swap_chain_images.size());
+    vulkan_create_image_views(vulkan_device, swap_chain_images, vulkan_swap_chain_image_format, vulkan_swap_chain_image_views);
 
     // More application initialization
     auto engine_instance = std::make_unique<nengine>();
@@ -679,7 +910,7 @@ int main(int argc, char** argv)
     engine_instance->shutdown();
 
     // cleanup Vulkan instance and dependencies
-    vulkan_cleanup(vulkan_instance, vulkan_debug_messenger, vulkan_device, surface);
+    vulkan_cleanup(vulkan_instance, vulkan_debug_messenger, vulkan_device, surface, vulkan_swap_chain, vulkan_swap_chain_image_views);
 
     // cleanup GLFW window and instance
     glfw_cleanup(window);
