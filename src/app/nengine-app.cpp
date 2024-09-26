@@ -252,7 +252,7 @@ struct VulkanSwapChainSupportDetails
 {
     VkSurfaceCapabilitiesKHR capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
+    std::vector<VkPresentModeKHR> present_modes;
 };
 
 void vulkan_print_queue_families(const VkPhysicalDevice& device)
@@ -326,9 +326,49 @@ bool vulkan_check_device_extension_support(VkPhysicalDevice physical_device)
         required_device_extensions.erase(extension.extensionName);
     }
 
+    std::cout << "\t\tDoes Device support required extensions? " << (required_device_extensions.empty() ? "YES" : "NO") << std::endl;
+    std::cout << "\t\tRequired extensions:" << std::endl;
+    for(const auto& extension : vulkan_required_device_extensions)
+    {
+        std::cout << "\t\t\t" << extension << std::endl;
+    }
+
+    if (!required_device_extensions.empty())
+    {
+        std::cout << "\t\tMissing extensions:" << std::endl;
+        for(const auto& extension : required_device_extensions)
+        {
+            std::cout << "\t\t\t" << extension << std::endl;
+        }
+    }
+
     return required_device_extensions.empty();
 }
 
+VulkanSwapChainSupportDetails vulkan_query_swap_chain_support_details(const VkPhysicalDevice& physical_device, const VkSurfaceKHR& surface)
+{
+    VulkanSwapChainSupportDetails details;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &details.capabilities);
+
+    uint32_t format_count;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, nullptr);
+    if (format_count != 0)
+    {
+        details.formats.resize(format_count);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, details.formats.data());
+    }
+
+    uint32_t present_mode_count;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, nullptr);
+
+    if (present_mode_count != 0)
+    {
+        details.present_modes.resize(present_mode_count);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, details.present_modes.data());
+    }
+
+    return details;
+}
 
 bool vulkan_is_physical_device_suitable(const VkPhysicalDevice& physical_device,
                                         const VkPhysicalDeviceProperties& device_properties,
@@ -341,13 +381,30 @@ bool vulkan_is_physical_device_suitable(const VkPhysicalDevice& physical_device,
     UNUSED(device_properties);
     UNUSED(device_memory_properties);
     UNUSED(device_features);
+
+    std::cout << applicationName << ": Checking Vulkan device " << device_properties.deviceName << " suitability." << std::endl;
     
-    bool is_suitable = true;
     VulkanQueueFamilyIndices device_queue_family_indices;
     vulkan_find_queue_families(physical_device, device_queue_family_indices, surface);
-    is_suitable == device_queue_family_indices.is_complete()
-                && vulkan_check_device_extension_support(physical_device);
-    return is_suitable;
+
+    bool extensions_supported = vulkan_check_device_extension_support(physical_device);
+
+    bool swap_chain_is_adequate = false;
+    if (extensions_supported)
+    {
+        VulkanSwapChainSupportDetails swap_chain_support = vulkan_query_swap_chain_support_details(physical_device, surface);
+        swap_chain_is_adequate = !swap_chain_support.formats.empty() && !swap_chain_support.present_modes.empty();
+        
+        std::cout << "\t\tIs Swap Chain Support Adequate? " << (swap_chain_is_adequate ? "YES" : "NO") << std::endl;
+        for (const auto& format : swap_chain_support.formats)
+        {
+            std::cout << "\t\t\tFormat: " << string_VkFormat(format.format) << " Color Space: " << string_VkColorSpaceKHR(format.colorSpace) << std::endl;
+        }
+    }
+
+    return  device_queue_family_indices.is_complete()
+                && extensions_supported
+                && swap_chain_is_adequate;
 }
 
 unsigned long long vulkan_get_physical_device_score(const VkPhysicalDevice& physical_device,
@@ -382,6 +439,8 @@ unsigned long long vulkan_get_physical_device_score(const VkPhysicalDevice& phys
     {
         score *= (device_memory_properties.memoryHeaps[0].size / 1000000);
     }
+
+    //TODO: add debug logging how capability is computed.
 
     return score;
 }
@@ -421,11 +480,11 @@ VkResult vulkan_pick_physical_device(const VkInstance& vulkan_instance, VkPhysic
         {
             unsigned int device_score = vulkan_get_physical_device_score(device, device_properties, device_features, device_memory_properties);
             suitable_vulkan_devices.push(std::make_tuple(device, device_score));
-            std::cout << " - Capability Score: " << device_score;
+            std::cout << "\t\tCapability Score: " << device_score;
         }
         else
         {
-            std::cout << " - NOT SUITABLE";
+            std::cout << "\t\tNOT SUITABLE";
         }
 
         std::cout << std::endl;
@@ -473,7 +532,7 @@ VkResult vulkan_initialize_debug_utils(const VkInstance& vulkan_instance, VkDebu
     return result;
 }
 
-void vulkan_create_logical_device(VkPhysicalDevice& physical_device, VkDevice& device, VkQueue& graphics_queue, VkSurfaceKHR& surface)
+void vulkan_create_logical_device(VkPhysicalDevice& physical_device, VkDevice& device, VkQueue& graphics_queue, VkQueue& present_queue, VkSurfaceKHR& surface)
 {
     std::cout << applicationName << ": Creating Vulkan logical device." << std::endl;
     
@@ -496,29 +555,36 @@ void vulkan_create_logical_device(VkPhysicalDevice& physical_device, VkDevice& d
     vulkan_print_queue_families(physical_device);
 
     std::cout << "\t" << "Using Graphics Queue: " << queue_family_indices.graphics_family.value() << std::endl;
+    std::cout << "\t" << "Using Present Queue: " << queue_family_indices.present_family.value() << std::endl;
 
-    VkDeviceQueueCreateInfo queue_create_info = {};
-    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
-    queue_create_info.queueCount = 1;
-
-    float queue_priority = 1.0f;
-    queue_create_info.pQueuePriorities = &queue_priority;
+    std::set<uint32_t> unique_queue_families = {queue_family_indices.graphics_family.value(), queue_family_indices.present_family.value()};
+    std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+    float queuePriority = 1.0f;
+    for (uint32_t queue_family : unique_queue_families) 
+    {
+        VkDeviceQueueCreateInfo queue_create_info = {};
+        queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_create_info.queueFamilyIndex = queue_family;
+        queue_create_info.queueCount = 1;
+        queue_create_info.pQueuePriorities = &queuePriority;
+        queue_create_infos.push_back(queue_create_info);
+    }
 
     VkPhysicalDeviceFeatures physical_device_features = {};
 
     VkDeviceCreateInfo logical_device_create_info = {};
     logical_device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    logical_device_create_info.pQueueCreateInfos = &queue_create_info;
-    logical_device_create_info.queueCreateInfoCount = 1;
     logical_device_create_info.pEnabledFeatures = &physical_device_features;
     logical_device_create_info.enabledExtensionCount = device_extensions.size();
     logical_device_create_info.ppEnabledExtensionNames = device_extensions.data();
     logical_device_create_info.enabledLayerCount = 0;
-    #ifndef NDEBUG
+    #ifndef NDEBUG // enable validation layers
     logical_device_create_info.enabledLayerCount = static_cast<uint32_t>(vulkan_required_validation_layers.size());
     logical_device_create_info.ppEnabledLayerNames = vulkan_required_validation_layers.data();
     #endif
+    // add queue creation information structures.
+    logical_device_create_info.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size());
+    logical_device_create_info.pQueueCreateInfos = queue_create_infos.data();
 
     if (vkCreateDevice(physical_device, &logical_device_create_info, nullptr, &device) != VK_SUCCESS)
     {
@@ -535,31 +601,11 @@ void vulkan_create_logical_device(VkPhysicalDevice& physical_device, VkDevice& d
     }
 
     vkGetDeviceQueue(device, queue_family_indices.graphics_family.value(), 0, &graphics_queue);
-}
+    vkGetDeviceQueue(device, queue_family_indices.present_family.value(), 0, &present_queue);
 
-VulkanSwapChainSupportDetails vulkan_query_swap_chain_support_details(VkPhysicalDevice& physical_device, VkSurfaceKHR& surface)
-{
-    VulkanSwapChainSupportDetails details;
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &details.capabilities);
-
-    uint32_t format_count;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, nullptr);
-    if (format_count != 0)
-    {
-        details.formats.resize(format_count);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, details.formats.data());
-    }
-
-
-
-    //uint32_t present_mode_count;
-    //vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_mode_count, nullptr);
-    //if (present_mode_count != 0)
-    //{
-        
-    //}
-
-    return details;
+    std::cout << applicationName << ": Using Graphics VkQueue: " << &graphics_queue << std::endl;
+    std::cout << applicationName << ": Using Present VkQueue: " << &present_queue << std::endl;
+    std::cout << applicationName << ": Created Vulkan logical device." << std::endl;
 }
 
 void vulkan_cleanup(VkInstance& vulkan_instance, VkDebugUtilsMessengerEXT& vulkan_debug_messenger, VkDevice& vulkan_device, VkSurfaceKHR& vulkan_surface)
@@ -608,9 +654,11 @@ int main(int argc, char** argv)
     // create vulkan device
     VkDevice vulkan_device = VK_NULL_HANDLE;
     VkQueue vulkan_graphics_queue = VK_NULL_HANDLE;
-    vulkan_create_logical_device(vulkan_physical_device, vulkan_device, vulkan_graphics_queue, surface);
+    VkQueue vulkan_present_queue = VK_NULL_HANDLE;
+    vulkan_create_logical_device(vulkan_physical_device, vulkan_device, vulkan_graphics_queue, vulkan_present_queue, surface);
 
     // initialize the swapchain
+
 
     // More application initialization
     auto engine_instance = std::make_unique<nengine>();
