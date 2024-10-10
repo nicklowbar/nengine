@@ -1,0 +1,34 @@
+// NeNgine - application - shader compilation
+//------------------------------------------------------------------------------
+
+{
+    .ProjectName                    = 'nengine-app-shaders'
+    .ProjectPath                    = 'src/app/shaders'
+
+    // Library
+    //--------------------------------------------------------------------------
+    .ProjectConfigs = {}
+    ForEach( .BuildConfig in .BuildConfigs )
+    {
+        Using( .BuildConfig )
+
+        .OutputBase + '\$Platform$-$BuildConfigName$'
+        .OutputPath = '$OutputBase$/$ProjectPath$/'
+        
+        CopyDir ( '$ProjectName$-$Platform$-$BuildConfigName$-Copy' )
+        {
+            .SourcePaths                =   { .ProjectPath }
+            .SourcePathsPattern         =   { 
+                                                '*.vert'
+                                                '*.frag'
+                                                '*.tesc'
+                                                '*.tese'
+                                                '*.geom'
+                                                '*.comp'
+                                                '*.glsl'
+                                                '*.hlsl'
+                                            }
+            .Dest                       =   .OutputPath
+        }
+    }
+}
