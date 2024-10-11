@@ -1,0 +1,107 @@
+.ShadercBasePath     = "external/SDK/shaderc/shaderc"
+.ShadercIncludePath  = '$ShadercBasePath$/libshaderc/include'
+.ShadercSourcePath   = '$GlmBasePath$/libshaderc/src'
+
+{
+    .ProjectName = "shaderc"
+    .ProjectPath = '$ShadercBasePath$'
+
+    {
+        .Platform = "Unknown"
+
+        #if  __LINUX__
+        .Platform = "Linux"
+        #endif
+        #if __OSX__
+        .Platform = 'OSX'
+        #endif
+        #if __WINDOWS__
+        .Platform = 'Windows'
+        #endif
+        .BuildConfigName = "Shared"
+
+
+        .OutputBase + '\$Platform$-$BuildConfigName$'
+        .ShadercOutputPath   = '$OutputBase$/external/SDK/$ProjectName$'
+
+        Exec ( '$ProjectName$-Lib-SyncDeps' )
+        {
+            .ExecExecutable             =   '/usr/bin/python'
+            .ExecWorkingDir             =   '$ShadercBasePath$/utils'
+            .ExecAlways                 =   true
+            .ExecUseStdOutAsOutput      =   true
+            .ExecArguments              =   ' ./git-sync-deps'
+                                        
+            .ExecOutput                 =   '$ShadercOutputPath$/out-sync-deps.txt'
+        }
+    }
+
+    ForEach( .BuildConfig in .BuildConfigs )
+    {
+        Using( .BuildConfig )
+
+        .CmakeBuildConfigName = 'Debug'
+
+        If( .BuildConfigName == 'Debug' )
+        {
+            ^CmakeBuildConfigName = 'Debug'
+        }
+        If( (.BuildConfigName == 'Release') 
+            || (.BuildConfigName == 'Profile') 
+            || (.BuildConfigName == 'Analyze'))
+        {
+            ^CmakeBuildConfigName = 'Release'
+        }
+        If ( (.BuildConfigName == 'ASan')
+            || (.BuildConfigName == 'TSan')
+            || (.BuildConfigName == 'MSan'))
+        {
+            ^CmakeBuildConfigName = 'RelWithDebInfo'
+        }
+
+        .OutputBase + '\$Platform$-$BuildConfigName$'
+        .ShadercOutputPath   = '$OutputBase$/external/SDK/$ProjectName$'
+        .ShadercInstallPrefix = '$ShadercOutputPath$/third_party'
+
+        Exec ( '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Configure' )
+        {
+            .PreBuildDependencies       =   '$ProjectName$-Lib-SyncDeps'
+            .ExecExecutable             =   '/usr/bin/cmake'
+            .ExecAlways                 =   true
+            .ExecUseStdOutAsOutput      =   true
+            .ExecArguments              =   ' -S $ShadercBasePath$'
+                                        +   ' -GNinja'
+                                        +   ' -B $ShadercOutputPath$'
+                                        +   ' -DSHADERC_ENABLE_WGSL_OUTPUT=OFF' //TODO: figure out how to install/build tint as a dependency of shaderc
+                                        +   ' -DCMAKE_BUILD_TYPE=$CmakeBuildConfigName$'
+                                        +   ' -DSHADERC_SKIP_INSTALL=OFF'
+                                        +   ' -DCMAKE_INSTALL_PREFIX=$ShadercInstallPrefix$'
+
+            .ExecOutput                 =   '$ShadercOutputPath$/out-configure.txt'
+        }
+
+        Exec ( '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Build' )
+        {
+            .PreBuildDependencies       =   '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Configure'
+            .ExecWorkingDir             =   '$ShadercOutputPath$'
+            .ExecExecutable             =   '/usr/bin/ninja'
+            .ExecAlways                 =   true
+            .ExecUseStdOutAsOutput      =   true
+            .ExecOutput                 =   '$ShadercOutputPath$/out-ninja.txt'
+        }
+
+
+        //Exec ( '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Install' )
+        //{
+        //    .PreBuildDependencies       =   '$ProjectName$-Lib-$Platform$-$BuildConfigName$-Build'
+        //    .ExecWorkingDir             =   '$ShadercOutputPath$'
+        //    .ExecExecutable             =   '/usr/bin/make'
+        //    .ExecArguments              =   'install'
+        //    .ExecAlways                 =   true
+        //    .ExecUseStdOutAsOutput      =   true
+        //    .ExecOutput                 =   '$ShadercOutputPath$/out-install.txt'
+        //}
+
+        Alias( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' ) { .Targets = '$ShadercOutputPath$/libshaderc/libshaderc.a' }
+    }
+}

@@ -4,3 +4,6 @@ libxcursor-dev
 libxrender-dev
 libx11-dev
 clang
+python
+vulkan-tools
+ninja

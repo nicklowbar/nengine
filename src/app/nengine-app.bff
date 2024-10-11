@@ -66,12 +66,14 @@
         {
             .PreBuildDependencies           =   {
                                                     'Glfw-Lib-$Platform$-$BuildConfigName$-Build'
-
+                                                    'nengine-app-Shaders-$Platform$-$BuildConfigName$-Copy'
                                                 }
             .Libraries                      = {
                                                 'nengine-app-Lib-$Platform$-$BuildConfigName$'
                                                 'nengine-Lib-$Platform$-$BuildConfigName$'
                                                 'Glfw-Lib-$Platform$-$BuildConfigName$'
+                                                'Glm-Lib-$Platform$-$BuildConfigName$'
+                                                'shaderc-Lib-$Platform$-$BuildConfigName$'
                                               }
             .LinkerOutput                   = '$OutputBase$/$ProjectPath$/$ProjectName$$ExeExtension$'
             #if __WINDOWS__

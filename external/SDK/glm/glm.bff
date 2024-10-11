@@ -35,6 +35,6 @@
             .ExecOutput                 =   '$GlmOutputPath$/out-make.txt'
         }
 
-        Alias( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' ) { .Targets = '$GlmOutputPath$/src/libglm3.a' }
+        Alias( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' ) { .Targets = '$GlmOutputPath$/glm/libglm.a' }
     }
 }

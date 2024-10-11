@@ -8,3 +8,6 @@
 [submodule "external/SDK/glm/glm"]
 	path = external/SDK/glm/glm
 	url = git@github.com:icaven/glm.git
+[submodule "external/SDK/shaderc/shaderc"]
+	path = external/SDK/shaderc/shaderc
+	url = nicklowbar-github:google/shaderc.git

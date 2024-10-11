@@ -28,6 +28,10 @@
         //--------------------------------------------------------------------------
         ObjectList( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' )
         {
+            .PreBuildDependencies       = {
+                                            'shaderc-Lib-$Platform$-$BuildConfigName$-Build'
+                                            'Glm-Lib-$Platform$-$BuildConfigName$-Build'
+                                        }
             // Input
             .CompilerInputUnity         = '$ProjectName$-Unity-$Platform$-$BuildConfigName$'
 
