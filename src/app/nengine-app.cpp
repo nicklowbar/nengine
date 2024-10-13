@@ -1,4 +1,5 @@
 #include "../core/include/nengine.h"
+#include "../core/include/nengine-shader-compiler.h"
 #include "../utils/helpers.h"
 
 #ifdef __LINUX__
@@ -16,6 +17,8 @@
 #include <algorithm>
 #include <bitset>
 #include <iostream>
+#include <fstream>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -814,6 +817,15 @@ void vulkan_create_image_views( const VkDevice& device,
     std::cout << applicationName << ": Created Vulkan image views." << std::endl;
 }
 
+void vulkan_create_graphics_pipeline()
+{
+    std::cout << applicationName << ": Creating Vulkan graphics pipeline." << std::endl;
+    
+    
+
+    std::cout << applicationName << ": Created Vulkan graphics pipeline." << std::endl;
+}
+
 void vulkan_cleanup(VkInstance& vulkan_instance, 
                     VkDebugUtilsMessengerEXT& vulkan_debug_messenger, 
                     VkDevice& vulkan_device, 
@@ -890,6 +902,67 @@ int main(int argc, char** argv)
     // create image views
     std::vector<VkImageView> vulkan_swap_chain_image_views(swap_chain_images.size());
     vulkan_create_image_views(vulkan_device, swap_chain_images, vulkan_swap_chain_image_format, vulkan_swap_chain_image_views);
+
+
+    // compile shaders
+    std::cout << applicationName << ": Compiling shaders." << std::endl;
+    
+    // vertex shader
+    const std::filesystem::path current_path = std::filesystem::current_path();
+    const std::filesystem::path executable_relative_path(argv[0]);
+    const std::filesystem::path executable_relative_directory = executable_relative_path.parent_path();
+    const std::filesystem::path vertex_shader_relative_path ("shaders/basic-shader-triangle.vert");
+    
+    std::cout << "\t" << applicationName << ": Compiling vertex shader: " << current_path / executable_relative_directory / vertex_shader_relative_path << std::endl;
+    
+    shader_compile_config vertex_shader_config;
+    vertex_shader_config.entry_point = "main";
+
+    // read the vertex shader code from file
+    std::ifstream vertex_shader_code_in(current_path / executable_relative_directory / vertex_shader_relative_path);
+    assert(!vertex_shader_code_in.fail());
+    vertex_shader_code_in.seekg(0, std::ios::end);
+    assert(!vertex_shader_code_in.fail());
+    uint32_t vertex_shader_code_size = vertex_shader_code_in.tellg();
+    assert(!vertex_shader_code_in.fail());
+    vertex_shader_config.shader_code.resize(vertex_shader_code_size);
+    vertex_shader_code_in.seekg(0);
+    assert(!vertex_shader_code_in.fail());
+    vertex_shader_code_in.read(&(vertex_shader_config.shader_code[0]), vertex_shader_code_size);
+    assert(!vertex_shader_code_in.fail());
+    
+    vertex_shader_config.shader_kind = shaderc_shader_kind::shaderc_glsl_vertex_shader;
+
+    std::cout << "\t\t" << "Vertex shader source: \n" << vertex_shader_config.shader_code << std::endl;
+    spirv_module vertex_shader_module = shader_compiler::compile(vertex_shader_config);
+
+    // fragment shader
+    const std::filesystem::path fragment_shader_relative_path("shaders/basic-shader-triangle.frag");
+    
+    std::cout << "\t" << applicationName << ": Compiling fragment shader: " << current_path / executable_relative_directory / fragment_shader_relative_path << std::endl;
+
+    // read the vertex shader code from file
+    shader_compile_config fragment_shader_config;
+    fragment_shader_config.entry_point = "main";
+    std::ifstream fragment_shader_code_in(current_path / executable_relative_directory / fragment_shader_relative_path);
+    assert(!fragment_shader_code_in.fail());
+    fragment_shader_code_in.seekg(0, std::ios::end);
+    assert(!fragment_shader_code_in.fail());
+    uint32_t fragment_shader_code_size = fragment_shader_code_in.tellg();
+    assert(!fragment_shader_code_in.fail());
+    fragment_shader_config.shader_code.resize(fragment_shader_code_size);
+    fragment_shader_code_in.seekg(0);
+    assert(!fragment_shader_code_in.fail());
+    fragment_shader_code_in.read(&fragment_shader_config.shader_code[0], fragment_shader_code_size);
+    assert(!fragment_shader_code_in.fail());
+
+    fragment_shader_config.shader_kind = shaderc_shader_kind::shaderc_glsl_fragment_shader;
+
+    std::cout << "\t\t" << fragment_shader_config.shader_code << std::endl; 
+    spirv_module fragment_shader_module = shader_compiler::compile(fragment_shader_config);
+    
+    // setup graphics pipeline
+    vulkan_create_graphics_pipeline();
 
     // More application initialization
     auto engine_instance = std::make_unique<nengine>();

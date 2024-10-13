@@ -75,6 +75,10 @@
                                         +   ' -DSHADERC_ENABLE_WGSL_OUTPUT=OFF' //TODO: figure out how to install/build tint as a dependency of shaderc
                                         +   ' -DCMAKE_BUILD_TYPE=$CmakeBuildConfigName$'
                                         +   ' -DSHADERC_SKIP_INSTALL=OFF'
+                                        +   ' -DCMAKE_CXX_STANDARD=20'
+                                        +   ' -DBUILD_SHARED_LIBS=OFF'
+                                        +   ' -DSPIRV_ALLOW_TIMERS=ON'
+                                        +   ' -DSPIRV_TOOLS_BUILD_STATIC=ON'
                                         +   ' -DCMAKE_INSTALL_PREFIX=$ShadercInstallPrefix$'
 
             .ExecOutput                 =   '$ShadercOutputPath$/out-configure.txt'
@@ -102,6 +106,15 @@
         //    .ExecOutput                 =   '$ShadercOutputPath$/out-install.txt'
         //}
 
-        Alias( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' ) { .Targets = '$ShadercOutputPath$/libshaderc/libshaderc.a' }
+        Alias( '$ProjectName$-Lib-$Platform$-$BuildConfigName$' ) 
+        { .Targets = 
+            {
+                '$ShadercOutputPath$/libshaderc/libshaderc.a'
+                '$ShadercOutputPath$/libshaderc_util/libshaderc_util.a'
+                '$ShadercOutputPath$/third_party/spirv-tools/source/opt/libSPIRV-Tools-opt.a'
+                '$ShadercOutputPath$/third_party/spirv-tools/source/libSPIRV-Tools.a'
+                '$ShadercOutputPath$/third_party/glslang/glslang/libglslang.a'
+            } 
+        }
     }
 }

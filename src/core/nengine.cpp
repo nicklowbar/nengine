@@ -6,6 +6,7 @@
 #include <memory>
 
 nengine_utils::version nengine::nengine_version = {0, 0, 1, 0};
+std::string nengine::name = "NeNgine";
 
 nengine::nengine(){}
 

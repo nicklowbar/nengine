@@ -2,6 +2,7 @@
 #include "../../utils/helpers.h"
 
 #include <glm/glm.hpp>
+#include <string>
 
 struct nengine_config
 {
@@ -29,7 +30,8 @@ public:
     nengine();
     nengine(nengine_config in_config);
     static nengine_utils::version nengine_version;
-    
+    static std::string name;
+
 public:
     void initialize();
     inline int get_status(){ return status; }

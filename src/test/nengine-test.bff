@@ -62,6 +62,7 @@
                                                 'nengine-Lib-$Platform$-$BuildConfigName$'
                                                 'GTest-Lib-$Platform$-$BuildConfigName$'
                                                 'nengine-test-Lib-$Platform$-$BuildConfigName$'
+                                                'shaderc-Lib-$Platform$-$BuildConfigName$'
                                               }
 
             .LinkerOutput                   = '$OutputBase$/$ProjectPath$/$ProjectName$$ExeExtension$'
