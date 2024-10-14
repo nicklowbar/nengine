@@ -80,6 +80,26 @@ void glfw_cleanup(GLFWwindow* window)
     glfwTerminate();
 }
 
+// Vulkan state
+
+VkInstance                              vulkan_instance                 = VK_NULL_HANDLE;
+VkDebugUtilsMessengerEXT                vulkan_debug_messenger          = VK_NULL_HANDLE;
+VkPhysicalDevice                        vulkan_physical_device          = VK_NULL_HANDLE;
+VkDevice                                vulkan_device                   = VK_NULL_HANDLE;
+VkQueue                                 vulkan_graphics_queue           = VK_NULL_HANDLE;
+VkQueue                                 vulkan_present_queue            = VK_NULL_HANDLE;
+VkSurfaceKHR                            vulkan_surface                  = VK_NULL_HANDLE;
+VkSwapchainKHR                          vulkan_swap_chain               = VK_NULL_HANDLE;
+VkFormat                                vulkan_swap_chain_image_format  = VK_FORMAT_UNDEFINED;
+VkExtent2D                              vulkan_swap_chain_extent        = {0, 0};
+std::vector<VkImage>                    vulkan_swap_chain_images        = {};
+std::vector<VkImageView>                vulkan_swap_chain_image_views   = {};
+std::vector<VkShaderModule>             vulkan_shader_modules           = {};
+std::vector
+    <VkPipelineShaderStageCreateInfo>   vulkan_shader_stages            = {};
+
+
+
 // Vulkan callbacks
 
 #ifndef NDEBUG
@@ -129,7 +149,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(   VkDebugUtilsMessageSever
     return VK_FALSE;
 }
 
-VkResult vulkan_initialize(VkInstance& vulkan_instance)
+VkResult vulkan_initialize(VkInstance& instance)
 {
     // Check that vulkan exists and is usable.
     unsigned int vulkan_extension_count = 0;
@@ -222,7 +242,7 @@ VkResult vulkan_initialize(VkInstance& vulkan_instance)
 
     // finally, initialize the Vulkan instance
     {
-        auto result = vkCreateInstance(&vulkan_create_info, nullptr, &vulkan_instance);
+        auto result = vkCreateInstance(&vulkan_create_info, nullptr, &instance);
         if (result != VK_SUCCESS)
         {
             //NOTE: according to LunarG's vulkan tutorial, Vulkan _can_ fail to initialize on some Mac platforms. 
@@ -514,14 +534,14 @@ unsigned long long vulkan_get_physical_device_score(const VkPhysicalDevice& phys
     return score;
 }
 
-VkResult vulkan_pick_physical_device(const VkInstance& vulkan_instance, VkPhysicalDevice& vulkan_physical_device, const VkSurfaceKHR& surface)
+VkResult vulkan_pick_physical_device(const VkInstance& instance, VkPhysicalDevice& physical_device, const VkSurfaceKHR& surface)
 {
-    unsigned int vulkan_physical_device_count = 0;
-    vkEnumeratePhysicalDevices(vulkan_instance, &vulkan_physical_device_count, nullptr);
-    std::vector<VkPhysicalDevice> vulkan_physical_devices(vulkan_physical_device_count);
-    vkEnumeratePhysicalDevices(vulkan_instance, &vulkan_physical_device_count, vulkan_physical_devices.data());
+    unsigned int physical_device_count = 0;
+    vkEnumeratePhysicalDevices(instance, &physical_device_count, nullptr);
+    std::vector<VkPhysicalDevice> physical_devices(physical_device_count);
+    vkEnumeratePhysicalDevices(instance, &physical_device_count, physical_devices.data());
 
-    std::cout << applicationName << ": Found " << vulkan_physical_device_count << " GPUs: " << std::endl;
+    std::cout << applicationName << ": Found " << physical_device_count << " GPUs: " << std::endl;
 
     typedef std::tuple<VkPhysicalDevice, unsigned int> VkDeviceRanking;
     auto device_ranking_greater_than_comparitor = [=](VkDeviceRanking lhs, VkDeviceRanking rhs)
@@ -533,7 +553,7 @@ VkResult vulkan_pick_physical_device(const VkInstance& vulkan_instance, VkPhysic
                         std::vector<VkDeviceRanking>,
                         decltype(device_ranking_greater_than_comparitor)>
                         suitable_vulkan_devices(device_ranking_greater_than_comparitor);
-    for (const auto device : vulkan_physical_devices)
+    for (const auto device : physical_devices)
     {
         VkPhysicalDeviceProperties device_properties;
         VkPhysicalDeviceFeatures device_features;
@@ -567,15 +587,15 @@ VkResult vulkan_pick_physical_device(const VkInstance& vulkan_instance, VkPhysic
         throw std::runtime_error(ss.str());
     }
 
-    vulkan_physical_device = std::get<0>(suitable_vulkan_devices.top());
+    physical_device = std::get<0>(suitable_vulkan_devices.top());
     VkPhysicalDeviceProperties device_properties;
-    vkGetPhysicalDeviceProperties(vulkan_physical_device, &device_properties);
+    vkGetPhysicalDeviceProperties(physical_device, &device_properties);
     std::cout << applicationName << ": Using device: " << device_properties.deviceName << std::endl;
     
     return VK_SUCCESS;
 }
 
-VkResult vulkan_initialize_debug_utils(const VkInstance& vulkan_instance, VkDebugUtilsMessengerEXT& vulkan_debug_messenger)
+VkResult vulkan_initialize_debug_utils(const VkInstance& instance, VkDebugUtilsMessengerEXT& debug_messenger)
 {
     // enable debug messaging from the Vulkan instance
     VkDebugUtilsMessengerCreateInfoEXT vulkan_debug_utils_messenger_createInfo = {};
@@ -589,7 +609,7 @@ VkResult vulkan_initialize_debug_utils(const VkInstance& vulkan_instance, VkDebu
     vulkan_debug_utils_messenger_createInfo.pfnUserCallback = vulkan_debug_callback;
     vulkan_debug_utils_messenger_createInfo.pUserData = nullptr;
 
-    auto result = vulkan_CreateDebugUtilsMessengerEXT(vulkan_instance, &vulkan_debug_utils_messenger_createInfo, nullptr, &vulkan_debug_messenger);
+    auto result = vulkan_CreateDebugUtilsMessengerEXT(instance, &vulkan_debug_utils_messenger_createInfo, nullptr, &debug_messenger);
 
     if (result != VK_SUCCESS)
     {
@@ -817,27 +837,43 @@ void vulkan_create_image_views( const VkDevice& device,
     std::cout << applicationName << ": Created Vulkan image views." << std::endl;
 }
 
+VkShaderModule vulkan_create_shader_module(const VkDevice& device, const std::vector<uint32_t>& shader_bytecode)
+{
+    VkShaderModuleCreateInfo create_info = {};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = shader_bytecode.size() * sizeof(uint32_t);
+    create_info.pCode = shader_bytecode.data();
+    VkShaderModule shader_module;
+    if(vkCreateShaderModule(device, &create_info, nullptr, &shader_module) != VK_SUCCESS)
+    {
+        std::ostringstream error_stream;
+        error_stream << applicationName << ": Vulkan - Failed to create shader module using bytecode: " << &shader_bytecode << std::endl;
+        throw std::runtime_error(error_stream.str());
+    }
+    return shader_module;
+}
+
 void vulkan_create_graphics_pipeline()
 {
     std::cout << applicationName << ": Creating Vulkan graphics pipeline." << std::endl;
     
+    //auto vertex_shader_module = vulkan_create_shader_module(vertex_shader_bytecode);
     
 
     std::cout << applicationName << ": Created Vulkan graphics pipeline." << std::endl;
 }
 
-void vulkan_cleanup(VkInstance& vulkan_instance, 
-                    VkDebugUtilsMessengerEXT& vulkan_debug_messenger, 
-                    VkDevice& vulkan_device, 
-                    VkSurfaceKHR& vulkan_surface,
-                    VkSwapchainKHR& swap_chain,
-                    std::vector<VkImageView>& swap_chain_image_views)
+void vulkan_cleanup()
 {
-    for (auto image_view : swap_chain_image_views)
+    for (auto shader_module : vulkan_shader_modules)
+    {
+        vkDestroyShaderModule(vulkan_device, shader_module, nullptr);
+    }
+    for (auto image_view : vulkan_swap_chain_image_views)
     {
         vkDestroyImageView(vulkan_device, image_view, nullptr);
     }
-    vkDestroySwapchainKHR(vulkan_device, swap_chain, nullptr);
+    vkDestroySwapchainKHR(vulkan_device, vulkan_swap_chain, nullptr);
     vkDestroySurfaceKHR(vulkan_instance, vulkan_surface, nullptr);
     vkDestroyDevice(vulkan_device, nullptr);
     vulkan_DestroyDebugUtilsMessengerEXT(vulkan_instance, vulkan_debug_messenger, nullptr);
@@ -852,21 +888,16 @@ int main(int argc, char** argv)
     nengine_config config;
 
     glfw_initialize();
-
-    VkInstance vulkan_instance = VK_NULL_HANDLE;
     vulkan_initialize(vulkan_instance);
 
-    VkDebugUtilsMessengerEXT vulkan_debug_messenger = VK_NULL_HANDLE;
     #ifndef NDEBUG
     vulkan_initialize_debug_utils(vulkan_instance, vulkan_debug_messenger);
     #endif // NDEBUG
 
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-
     // Create the window and rendering surface with GLFW.
     GLFWwindow* window = glfw_create_window(config);
 
-    if (glfwCreateWindowSurface(vulkan_instance, window, nullptr, &surface) != VK_SUCCESS)
+    if (glfwCreateWindowSurface(vulkan_instance, window, nullptr, &vulkan_surface) != VK_SUCCESS)
     {
         std::ostringstream oss;
         oss << applicationName << ": failed to create window surface." << std::endl;
@@ -874,33 +905,26 @@ int main(int argc, char** argv)
     }
 
     // pick a physical device
-    VkPhysicalDevice vulkan_physical_device = VK_NULL_HANDLE;
-    vulkan_pick_physical_device(vulkan_instance, vulkan_physical_device, surface);
+    vulkan_pick_physical_device(vulkan_instance, vulkan_physical_device, vulkan_surface);
 
     std::cout << applicationName << ": Created window surface.";
 
     // create the logical vulkan device
-    VkDevice vulkan_device = VK_NULL_HANDLE;
-    VkQueue vulkan_graphics_queue = VK_NULL_HANDLE;
-    VkQueue vulkan_present_queue = VK_NULL_HANDLE;
-    vulkan_create_logical_device(vulkan_physical_device, vulkan_device, vulkan_graphics_queue, vulkan_present_queue, surface);
+    vulkan_create_logical_device(vulkan_physical_device, vulkan_device, vulkan_graphics_queue, vulkan_present_queue, vulkan_surface);
 
     // initialize the swapchain
-    VkFormat vulkan_swap_chain_image_format = VK_FORMAT_UNDEFINED;
-    VkExtent2D vulkan_swap_chain_extent = {0, 0};
-    VkSwapchainKHR vulkan_swap_chain = VK_NULL_HANDLE;
     std::vector<VkImage> swap_chain_images;
     vulkan_create_swap_chain(   vulkan_physical_device, 
                                 vulkan_device, 
                                 window, 
-                                surface, 
+                                vulkan_surface, 
                                 vulkan_swap_chain,
                                 vulkan_swap_chain_image_format,
                                 vulkan_swap_chain_extent,
                                 swap_chain_images);
 
     // create image views
-    std::vector<VkImageView> vulkan_swap_chain_image_views(swap_chain_images.size());
+    vulkan_swap_chain_image_views.resize(swap_chain_images.size());
     vulkan_create_image_views(vulkan_device, swap_chain_images, vulkan_swap_chain_image_format, vulkan_swap_chain_image_views);
 
 
@@ -934,7 +958,7 @@ int main(int argc, char** argv)
     vertex_shader_config.shader_kind = shaderc_shader_kind::shaderc_glsl_vertex_shader;
 
     std::cout << "\t\t" << "Vertex shader source: \n" << vertex_shader_config.shader_code << std::endl;
-    spirv_module vertex_shader_module = shader_compiler::compile(vertex_shader_config);
+    spirv_module vertex_shader_bytecode = shader_compiler::compile(vertex_shader_config);
 
     // fragment shader
     const std::filesystem::path fragment_shader_relative_path("shaders/basic-shader-triangle.frag");
@@ -959,8 +983,30 @@ int main(int argc, char** argv)
     fragment_shader_config.shader_kind = shaderc_shader_kind::shaderc_glsl_fragment_shader;
 
     std::cout << "\t\t" << fragment_shader_config.shader_code << std::endl; 
-    spirv_module fragment_shader_module = shader_compiler::compile(fragment_shader_config);
-    
+    spirv_module fragment_shader_bytecode = shader_compiler::compile(fragment_shader_config);
+
+    VkShaderModule vertex_shader_module = vulkan_create_shader_module(vulkan_device, vertex_shader_bytecode);
+    VkShaderModule fragment_shader_module = vulkan_create_shader_module(vulkan_device, fragment_shader_bytecode);
+
+    vulkan_shader_modules = {vertex_shader_module, fragment_shader_module};
+
+    VkPipelineShaderStageCreateInfo vertex_shader_stage_info = {};
+    vertex_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertex_shader_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertex_shader_stage_info.module = vertex_shader_module;
+    vertex_shader_stage_info.pName = vertex_shader_config.entry_point.c_str();
+
+    VkPipelineShaderStageCreateInfo fragment_shader_stage_info = {};
+    fragment_shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragment_shader_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragment_shader_stage_info.module = fragment_shader_module;
+    fragment_shader_stage_info.pName = fragment_shader_config.entry_point.c_str();
+
+    vulkan_shader_stages.insert( vulkan_shader_stages.end(), {vertex_shader_stage_info, fragment_shader_stage_info} );
+
+
+
+
     // setup graphics pipeline
     vulkan_create_graphics_pipeline();
 
@@ -983,7 +1029,7 @@ int main(int argc, char** argv)
     engine_instance->shutdown();
 
     // cleanup Vulkan instance and dependencies
-    vulkan_cleanup(vulkan_instance, vulkan_debug_messenger, vulkan_device, surface, vulkan_swap_chain, vulkan_swap_chain_image_views);
+    vulkan_cleanup();
 
     // cleanup GLFW window and instance
     glfw_cleanup(window);
