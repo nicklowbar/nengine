@@ -35,6 +35,14 @@ const nengine_utils::version vulkan_api_version = { 0, 1, 3, 0};
 const std::string applicationName = "NeNgine-app";
 const std::string engineName = "NeNgine";
 
+// Application State
+const int MAX_FRAMES_IN_FLIGHT = 2;
+const int FRAMES_BETWEEN_FPS_CALCULATIONS = 100;
+
+uint64_t application_last_fps_calculation_frame = 0;
+double application_last_measurement_time = 0.0;
+double application_current_fps = 0.0;
+double application_current_frame_time = 0.0;
 
 // GLFW callbacks
 
@@ -102,11 +110,11 @@ VkRenderPass                            vulkan_render_pass              = VK_NUL
 VkPipeline                              vulkan_graphics_pipeline        = {};
 std::vector<VkFramebuffer>              vulkan_swap_chain_framebuffers  = {};
 VkCommandPool                           vulkan_command_pool             = VK_NULL_HANDLE;
-VkCommandBuffer                         vulkan_command_buffer           = VK_NULL_HANDLE;
+std::vector<VkCommandBuffer>            vulkan_command_buffers          = {VK_NULL_HANDLE};
 VkClearValue                            vulkan_clear_color              = {.color = {.float32 = { 0.0f, 0.0f, 0.0f, 1.0f}}};
-VkSemaphore                             vulkan_image_available_semaphore= VK_NULL_HANDLE;
-VkSemaphore                             vulkan_render_finished_semaphore= VK_NULL_HANDLE;
-VkFence                                 vulkan_in_flight_fence          = VK_NULL_HANDLE;
+std::vector<VkSemaphore>                vulkan_image_available_semaphores = {VK_NULL_HANDLE};
+std::vector<VkSemaphore>                vulkan_render_finished_semaphores = {VK_NULL_HANDLE};
+std::vector<VkFence>                    vulkan_in_flight_fences         = {VK_NULL_HANDLE};
 
 uint64_t                                current_render_frame            = 0;
 
@@ -1021,6 +1029,8 @@ void vulkan_create_graphics_pipeline(VkPipelineLayout& pipeline_layout)
 
 void vulkan_create_render_pass(VkRenderPass& render_pass)
 {
+    std::cout << applicationName << ": Creating Vulkan render pass." << std::endl;
+
     VkAttachmentDescription color_attachment_description{};
     color_attachment_description.format = vulkan_swap_chain_image_format;
     color_attachment_description.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -1067,6 +1077,8 @@ void vulkan_create_render_pass(VkRenderPass& render_pass)
         oss << applicationName << ": Vulkan - Failed to create render pass.";
         throw std::runtime_error(oss.str());
     }
+
+    std::cout << applicationName << ": Created Vulkan render pass." << std::endl;
 }
 
 void vulkan_create_framebuffers(std::vector<VkFramebuffer>& framebuffers)
@@ -1119,20 +1131,26 @@ void vulkan_create_command_pool(VkCommandPool& command_pool)
     std::cout << applicationName << ": Created Vulkan command pool." << std::endl;
 }
 
-void vulkan_create_command_buffer(VkCommandBuffer& command_buffer)
+void vulkan_create_command_buffers(std::vector<VkCommandBuffer>& command_buffers)
 {
+    std::cout << applicationName << ": Creating Vulkan command buffers." << std::endl;
+
+    command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+
     VkCommandBufferAllocateInfo command_buffer_allocate_info{};
     command_buffer_allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     command_buffer_allocate_info.commandPool = vulkan_command_pool;
     command_buffer_allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    command_buffer_allocate_info.commandBufferCount = 1;
+    command_buffer_allocate_info.commandBufferCount = command_buffers.size();
 
-    if(vkAllocateCommandBuffers(vulkan_device, &command_buffer_allocate_info, &command_buffer) != VK_SUCCESS)
+    if(vkAllocateCommandBuffers(vulkan_device, &command_buffer_allocate_info, command_buffers.data()) != VK_SUCCESS)
     {
         std::ostringstream oss;
-        oss << applicationName << ": Vulkan - Failed to allocate command buffer.";
+        oss << applicationName << ": Vulkan - Failed to allocate command buffers.";
         throw std::runtime_error(oss.str());
     }
+
+    std::cout << applicationName << ": Created Vulkan command buffers." << std::endl;
 }
 
 void vulkan_record_command_buffer(VkCommandBuffer& command_buffer, uint32_t image_index)
@@ -1190,18 +1208,26 @@ void vulkan_create_sync_objects()
 {
     VkSemaphoreCreateInfo semaphore_create_info{};
     semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    vulkan_image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    vulkan_render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
     
     VkFenceCreateInfo fence_create_info{};
     fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    if (vkCreateSemaphore(vulkan_device, &semaphore_create_info, nullptr, &vulkan_image_available_semaphore) != VK_SUCCESS ||
-        vkCreateSemaphore(vulkan_device, &semaphore_create_info, nullptr, &vulkan_render_finished_semaphore) != VK_SUCCESS ||
-        vkCreateFence(vulkan_device, &fence_create_info, nullptr, &vulkan_in_flight_fence) != VK_SUCCESS)
+    vulkan_in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i)
     {
-        std::ostringstream oss;
-        oss << applicationName << ": Vulkan - Failed to create synchronization objects.";
-        throw std::runtime_error(oss.str());
+        if (vkCreateSemaphore(vulkan_device, &semaphore_create_info, nullptr, &vulkan_image_available_semaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(vulkan_device, &semaphore_create_info, nullptr, &vulkan_render_finished_semaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(vulkan_device, &fence_create_info, nullptr, &vulkan_in_flight_fences[i]) != VK_SUCCESS)
+        {
+            std::ostringstream oss;
+            oss << applicationName << ": Vulkan - Failed to create synchronization objects for frame " << i;
+            throw std::runtime_error(oss.str());
+        }
     }
 }
 
@@ -1210,9 +1236,20 @@ void vulkan_cleanup()
     std::cout << std::endl;
     std::cout << applicationName << ": Cleaning up Vulkan resources." << std::endl;
     
-    vkDestroySemaphore(vulkan_device, vulkan_render_finished_semaphore, nullptr);
-    vkDestroySemaphore(vulkan_device, vulkan_image_available_semaphore, nullptr);
-    vkDestroyFence(vulkan_device, vulkan_in_flight_fence, nullptr);
+    for (auto semaphore : vulkan_image_available_semaphores)
+    {
+        vkDestroySemaphore(vulkan_device, semaphore, nullptr);
+    }
+
+    for (auto semaphore : vulkan_render_finished_semaphores)
+    {
+        vkDestroySemaphore(vulkan_device, semaphore, nullptr);
+    }
+
+    for (auto fence : vulkan_in_flight_fences)
+    {
+        vkDestroyFence(vulkan_device, fence, nullptr);
+    }
 
     vkDestroyCommandPool(vulkan_device, vulkan_command_pool, nullptr);
     
@@ -1246,32 +1283,38 @@ void vulkan_cleanup()
 
 void draw_frame()
 {
-    vkWaitForFences(vulkan_device, 1, &vulkan_in_flight_fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-    vkResetFences(vulkan_device, 1, &vulkan_in_flight_fence);
+    uint32_t current_frame_index = current_render_frame % MAX_FRAMES_IN_FLIGHT;
+    vkWaitForFences(vulkan_device, 1, &vulkan_in_flight_fences[current_frame_index], VK_TRUE, std::numeric_limits<uint64_t>::max());
+    vkResetFences(vulkan_device, 1, &vulkan_in_flight_fences[current_frame_index]);
 
     uint32_t image_index;
-    vkAcquireNextImageKHR(vulkan_device, vulkan_swap_chain, std::numeric_limits<uint64_t>::max(), vulkan_image_available_semaphore, VK_NULL_HANDLE, &image_index);
+    vkAcquireNextImageKHR(  vulkan_device,
+                            vulkan_swap_chain,
+                            std::numeric_limits<uint64_t>::max(),
+                            vulkan_image_available_semaphores[current_frame_index],
+                            VK_NULL_HANDLE,
+                            &image_index);
     
-    vkResetCommandBuffer(vulkan_command_buffer, 0);
-    vulkan_record_command_buffer(vulkan_command_buffer, image_index);
+    vkResetCommandBuffer(vulkan_command_buffers[current_frame_index], 0);
+    vulkan_record_command_buffer(vulkan_command_buffers[current_frame_index], image_index);
 
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     
-    VkSemaphore wait_semaphores[] = {vulkan_image_available_semaphore};
+    VkSemaphore wait_semaphores[] = {vulkan_image_available_semaphores[current_frame_index]};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     
     submit_info.waitSemaphoreCount = 1;
     submit_info.pWaitSemaphores = wait_semaphores;
     submit_info.pWaitDstStageMask = wait_stages;
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &vulkan_command_buffer;
+    submit_info.pCommandBuffers = &vulkan_command_buffers[current_frame_index];
     
-    VkSemaphore signal_semaphores[] = {vulkan_render_finished_semaphore};
+    VkSemaphore signal_semaphores[] = {vulkan_render_finished_semaphores[current_frame_index]};
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
 
-    if(vkQueueSubmit(vulkan_graphics_queue, 1, &submit_info, vulkan_in_flight_fence) != VK_SUCCESS)
+    if(vkQueueSubmit(vulkan_graphics_queue, 1, &submit_info, vulkan_in_flight_fences[current_frame_index]) != VK_SUCCESS)
     {
         std::ostringstream oss;
         oss << applicationName << ": Vulkan - Failed to submit draw command buffer.";
@@ -1296,8 +1339,20 @@ void draw_frame()
         throw std::runtime_error(oss.str());
     }
 
-    std::cout << "\rFrame number: " << current_render_frame << std::flush;
     current_render_frame++;
+}
+
+void compute_fps(double& last_frame_time, const double& current_frame_time, const uint64_t& frame_count_since_last_time, double& average_frame_time, double& average_fps)
+{
+    double elapsed_time = current_frame_time - last_frame_time;
+
+    if (elapsed_time > 1.0)
+    {
+        average_fps = static_cast<double>(frame_count_since_last_time) / elapsed_time;
+        average_frame_time = (elapsed_time * 1000.0) / static_cast<double>(frame_count_since_last_time); // convert seconds to miliseconds
+        last_frame_time = current_frame_time;
+        application_last_fps_calculation_frame = current_render_frame;
+    }
 }
 
 int main(int argc, char** argv)
@@ -1429,7 +1484,7 @@ int main(int argc, char** argv)
     vulkan_create_graphics_pipeline(vulkan_pipeline_layout);
     vulkan_create_framebuffers(vulkan_swap_chain_framebuffers);
     vulkan_create_command_pool(vulkan_command_pool);
-    vulkan_create_command_buffer(vulkan_command_buffer);
+    vulkan_create_command_buffers(vulkan_command_buffers);
     vulkan_create_sync_objects();
 
     // More application initialization
@@ -1444,10 +1499,18 @@ int main(int argc, char** argv)
     // Application main loop, pump OS events, calling handler callbacks via GLFW.
     engine_instance->initialize();
     
+    
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
         draw_frame();
+
+        if (current_render_frame % FRAMES_BETWEEN_FPS_CALCULATIONS == 0)
+        {
+            compute_fps(application_last_measurement_time, glfwGetTime(), current_render_frame - application_last_fps_calculation_frame, application_current_frame_time, application_current_fps);
+            std::cout << "\r" << "Frame Number: " << current_render_frame << " FPS: " << application_current_fps << " Frame time: " << application_current_frame_time << " ms" << std::flush;
+        }
+
     }
 
     // wait for device to finish all pending work before shutting down
